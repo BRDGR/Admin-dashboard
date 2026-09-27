@@ -89,7 +89,7 @@ export default function PartnerDetailPage({
           responseData: res.data,
         });
         const errMsg =
-          res.error?.message ||
+          (typeof res.error === "string" ? res.error : null) ||
           (res.data as { message?: string })?.message ||
           "Failed to update vetting status";
         throw new Error(errMsg);

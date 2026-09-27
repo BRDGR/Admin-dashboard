@@ -104,6 +104,7 @@ export async function listClients(
 
     return {
       status: res.status,
+      ok: true,
       error: null,
       data: {
         error: false,
@@ -148,6 +149,7 @@ export async function listClients(
 
     return {
       status: 200,
+      ok: true,
       error: null,
       data: {
         error: false,
@@ -184,6 +186,7 @@ export async function getClient(
 
     return {
       status: res.status,
+      ok: true,
       error: null,
       data: {
         error: false,
@@ -210,6 +213,7 @@ export async function getClient(
       const matchedOrgs = findOrgs(orgRecords, user.id, user.email);
       return {
         status: 200,
+        ok: true,
         error: null,
         data: {
           error: false,

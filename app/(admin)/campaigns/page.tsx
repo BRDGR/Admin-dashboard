@@ -74,7 +74,7 @@ export default function AdminCampaignsPage() {
   });
 
   // Filtered queue items — API returns `queue`, not `campaigns`
-  const queueItems = (queueData?.queue ?? []).filter((item) => {
+  const queueItems = (queueData?.campaigns ?? []).filter((item) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (

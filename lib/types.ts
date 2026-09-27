@@ -46,6 +46,9 @@ export interface DemoRequest {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+/** Alias for backwards-compat with components that import `User` */
+export type User = AdminUser;
+
 export interface AdminUser {
   id: string;
   firstName: string;
@@ -81,6 +84,7 @@ export interface PartnerProfile {
   contactEmail: string;
   contactPhone: string;
   isVetted: boolean;
+  socialAccounts?: { platform: string; handle: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -141,7 +145,7 @@ export interface OrganizationsResponse {
 
 // ─── KYC ─────────────────────────────────────────────────────────────────────
 
-export type KycStatus = "pending" | "verified" | "failed" | "rejected";
+export type KycStatus = "pending" | "verified" | "failed" | "rejected" | "approved";
 
 // Shape returned by GET /admin/kyc/ (org KYC)
 export interface KycRecord {
@@ -305,7 +309,7 @@ export type CampaignAssignmentStatus = "assigned" | "accepted" | "declined" | "e
 export interface AdminCampaignQueueItem {
   id: string;
   name: string;
-  status: "submitted" | "in_review" | "approved" | "rejected" | "changes_requested" | "active" | "paused" | "completed";
+  status: "submitted" | "in_review" | "approved" | "rejected" | "changes_requested" | "active" | "paused" | "completed" | "matching" | "assigned" | "pending_review" | "cancelled";
   organizationId: string;
   organizationName?: string;
   budgetMinor?: number;
@@ -328,7 +332,7 @@ export interface AdminCampaignQueueResponse {
 
 export interface CampaignReviewPayload {
   /** The target status — API accepts: matching, active, cancelled */
-  status: "matching" | "active" | "cancelled";
+  status: AdminCampaignQueueItem["status"];
   reason?: string;
   notes?: string;
   requestedChanges?: string[];
