@@ -1,0 +1,53 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  listByopRelationships, getByopRelationship,
+  getByopAnalytics, deleteByopInvitations,
+} from "@/lib/api";
+import type { ByopRelationshipsResponse } from "@/lib/types";
+import { toast } from "sonner";
+
+export function useByopRelationships(page = 1, limit = 20, search?: string, clientOrgId?: string) {
+  return useQuery({
+    queryKey: ["admin", "byop", "relationships", page, limit, search, clientOrgId],
+    queryFn: async () => {
+      const res = await listByopRelationships(page, limit, search, clientOrgId);
+      if (res.error) throw new Error(res.error);
+      return res.data?.data as ByopRelationshipsResponse;
+    },
+  });
+}
+
+export function useByopRelationship(relationshipId: string) {
+  return useQuery({
+    queryKey: ["admin", "byop", "relationship", relationshipId],
+    queryFn: async () => {
+      const res = await getByopRelationship(relationshipId);
+      if (res.error) throw new Error(res.error);
+      return res.data?.data?.records?.[0];
+    },
+    enabled: Boolean(relationshipId),
+  });
+}
+
+export function useByopAnalytics() {
+  return useQuery({
+    queryKey: ["admin", "byop", "analytics"],
+    queryFn: async () => {
+      const res = await getByopAnalytics();
+      if (res.error) throw new Error(res.error);
+      return res.data?.data;
+    },
+  });
+}
+
+export function useDeleteByopInvitations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteByopInvitations,
+    onSuccess: () => {
+      toast.success("Invitations cleaned up");
+      qc.invalidateQueries({ queryKey: ["admin", "byop"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
