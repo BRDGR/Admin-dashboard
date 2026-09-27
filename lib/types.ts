@@ -203,6 +203,13 @@ export interface KycReviewPayload {
 
 // ─── BYOP ─────────────────────────────────────────────────────────────────────
 
+export interface ByopAnalytics {
+  totalRelationships: number;
+  activePartners: number;
+  linkedOrganizations: number;
+  [key: string]: unknown;
+}
+
 export interface ByopRelationship {
   relationshipId: string;
   createdAt: string;
@@ -223,9 +230,13 @@ export interface StaffMember {
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "ops_admin";
+  role: "admin" | "ops_admin" | "super_admin" | string;
+  staffRole?: string;
   isActive: boolean;
+  emailVerifiedAt?: string | null;
+  lastLoginAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface StaffResponse {
@@ -243,7 +254,10 @@ export interface CreateStaffPayload {
 // ─── Seed History ─────────────────────────────────────────────────────────────
 
 export interface SeedHistoryRecord {
-  id: string;
+  id: number | string;
+  name: string;
+  version?: number;
+  executedAt: string;
   [key: string]: unknown;
 }
 
@@ -310,9 +324,20 @@ export interface AdminCampaignQueueItem {
   id: string;
   name: string;
   status: "submitted" | "in_review" | "approved" | "rejected" | "changes_requested" | "active" | "paused" | "completed" | "matching" | "assigned" | "pending_review" | "cancelled";
-  organizationId: string;
+  organizationId?: string;
   organizationName?: string;
+  organization?: {
+    id: string;
+    name: string;
+    [key: string]: unknown;
+  };
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  budgetAmount?: string | number;
+  budgetCurrency?: string;
   budgetMinor?: number;
+  budget?: number;
   currency?: string;
   idealPartnerType?: string;
   partnershipModel?: string;
@@ -326,7 +351,8 @@ export interface AdminCampaignQueueItem {
 }
 
 export interface AdminCampaignQueueResponse {
-  campaigns: AdminCampaignQueueItem[];
+  queue?: AdminCampaignQueueItem[];
+  campaigns?: AdminCampaignQueueItem[];
   pagination: Pagination;
 }
 
@@ -395,25 +421,42 @@ export interface CampaignActivatePayload {
   notifyPartners?: boolean;
 }
 
-export interface Campaign360Metrics {
+export interface Campaign360Summary {
   totalCampaigns: number;
   activeCampaigns: number;
-  inReviewCount: number;
-  totalBudgetAllocated: number;
-  totalConversions: number;
+  matchingCampaigns: number;
+  pendingReviewCampaigns: number;
+  completedCampaigns: number;
+  cancelledCampaigns?: number;
+  totalBudgetAllocated?: number;
+  totalConversions?: number;
   averageRoi?: number;
   currency?: string;
+  [key: string]: unknown;
+}
+
+export interface Campaign360CampaignItem {
+  id: string;
+  name: string;
+  status: string;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  organization?: { id: string; name: string };
+  targetTraffic?: number;
+  totalTraffic?: number;
+  achievementPct?: number;
+  partnersAssigned?: number;
+  activePartners?: number;
+  targetPosition?: number;
+  actualPosition?: number;
+  [key: string]: unknown;
 }
 
 export interface Campaign360OverviewResponse {
-  metrics: Campaign360Metrics;
-  breakdownByStatus: Record<string, number>;
-  topPerformingCampaigns?: Array<{
-    id: string;
-    name: string;
-    conversions: number;
-    revenue: number;
-  }>;
+  summary: Campaign360Summary;
+  campaigns: Campaign360CampaignItem[];
+  pagination: Pagination;
 }
 
 export interface CampaignPerformanceData {
@@ -430,6 +473,22 @@ export interface CampaignPerformanceData {
 
 export interface CampaignPerformanceResponse {
   performance: CampaignPerformanceData;
+}
+
+export interface PartnerCampaignPerformanceResponse {
+  performance: {
+    partnerUserId?: string;
+    partnerName?: string;
+    clicks: number;
+    impressions?: number;
+    conversions: number;
+    spend?: number;
+    revenue?: number;
+    conversionRate: number;
+    roas?: number;
+    status?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface CampaignEvaluationResponse {
@@ -465,20 +524,33 @@ export interface CampaignPipPayload {
 
 export type ContactStatus = "new" | "contacted" | "qualified" | "unqualified" | "converted";
 
+export interface DirectoryContactNotes {
+  priority?: "high" | "medium" | "low";
+  memo?: string;
+  initialContactDate?: string;
+  interests?: string[];
+  [key: string]: unknown;
+}
+
 export interface DirectoryContact {
   id: string;
   name: string;
   email: string;
   source: string;
   status: ContactStatus;
-  notes?: Record<string, unknown>;
+  notes?: DirectoryContactNotes;
   createdAt: string;
   updatedAt: string;
+  addedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 export interface DirectoryContactsResponse {
   contacts?: DirectoryContact[];
-  contact?: DirectoryContact | DirectoryContact[];
   pagination?: Pagination;
 }
 

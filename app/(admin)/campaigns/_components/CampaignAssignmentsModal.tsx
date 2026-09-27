@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Building2, Tag, DollarSign, Calendar } from "lucide-react";
 import { Button, StatusBadge, EmptyState } from "@/components/ui";
 import { getCampaignAssignments } from "@/lib/api/admin.api";
 import type { AdminCampaignQueueItem, CampaignAssignment } from "@/lib/types";
@@ -13,11 +13,32 @@ interface CampaignAssignmentsModalProps {
 }
 
 export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignmentsModalProps) {
+  console.log(
+    `%c[CampaignAssignmentsModal] Opened assignments for campaign: ${campaign.id}`,
+    "color: #10b981; font-weight: bold;",
+    campaign
+  );
+
+  const orgName = campaign.organization?.name ?? campaign.organizationName ?? "Client Org";
+  const currency = campaign.budgetCurrency ?? campaign.currency ?? "USD";
+  const formattedBudget = campaign.budgetAmount
+    ? Number(campaign.budgetAmount).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : campaign.budgetMinor
+    ? (campaign.budgetMinor / 100).toLocaleString()
+    : campaign.budget
+    ? Number(campaign.budget).toLocaleString()
+    : "N/A";
+
   const { data: assignmentsData, isLoading } = useQuery({
     queryKey: ["admin", "campaigns", "assignments", campaign.id],
     queryFn: async () => {
+      console.log("[CampaignAssignmentsModal] Fetching assignments for campaign:", campaign.id);
       const res = await getCampaignAssignments(campaign.id, { limit: 20 });
       if (res.error) throw new Error(res.error);
+      console.log("[CampaignAssignmentsModal] Assignments data:", res.data?.data);
       return res.data?.data;
     },
   });
@@ -36,6 +57,25 @@ export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignme
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Campaign Info Summary Bar */}
+        <div className="mx-5 mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            <span>{orgName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Tag className="w-3.5 h-3.5 text-slate-400" />
+            <span>{campaign.category ?? "General"}</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+            <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+            <span>
+              {currency} {formattedBudget}
+            </span>
+          </div>
+          <StatusBadge status={campaign.status} />
         </div>
 
         <div className="p-5 max-h-[60vh] overflow-y-auto">
@@ -64,7 +104,7 @@ export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignme
                   <div className="text-right">
                     <StatusBadge status={asgn.status} />
                     <span className="text-[10px] text-slate-400 block mt-1">
-                      {asgn.assignedAt ? format(new Date(asgn.assignedAt), "MMM d") : ""}
+                      {asgn.assignedAt ? format(new Date(asgn.assignedAt), "MMM d, yyyy") : ""}
                     </span>
                   </div>
                 </div>

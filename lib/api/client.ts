@@ -59,6 +59,7 @@ export async function apiRequest<T, B = unknown>(
       return { data: json, error: msg, status: res.status, ok: false };
     }
 
+    console.log(`[API] ${method} ${url} [${res.status}]`, json);
     return { data: json, error: null, status: res.status, ok: true };
   } catch (err) {
     console.error(`[API Client Network Error] ${method} ${url}:`, err);

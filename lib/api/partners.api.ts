@@ -41,85 +41,36 @@ export async function vetPartner(
   isVetted: boolean,
   partnerProfileId?: string
 ): Promise<ApiResponse<ApiEnvelope<PartnersResponse>>> {
-  console.log(`[Partners API] vetPartner request:`, {
-    partnerUserId,
-    partnerProfileId,
-    isVetted,
-    endpoint: `/admin/partners/${partnerUserId}/vet`,
-  });
+  let res = await apiRequest<ApiEnvelope<PartnersResponse>>(
+    `/admin/partners/${partnerUserId}/vet`,
+    { method: "PATCH", body: { isVetted } }
+  );
 
-  try {
-    let res = await apiRequest<ApiEnvelope<PartnersResponse>>(
-      `/admin/partners/${partnerUserId}/vet`,
-      {
-        method: "PATCH",
-        body: { isVetted },
-      }
+  if (res.status === 404 && partnerProfileId && partnerProfileId !== partnerUserId) {
+    res = await apiRequest<ApiEnvelope<PartnersResponse>>(
+      `/admin/partners/${partnerProfileId}/vet`,
+      { method: "PATCH", body: { isVetted } }
     );
-
-    // If 404 and partnerProfileId is available, try fallback
-    if (res.status === 404 && partnerProfileId && partnerProfileId !== partnerUserId) {
-      console.warn(
-        `[Partners API] vetPartner with partnerUserId returned 404, attempting fallback with partnerProfileId: ${partnerProfileId}`
-      );
-      res = await apiRequest<ApiEnvelope<PartnersResponse>>(
-        `/admin/partners/${partnerProfileId}/vet`,
-        {
-          method: "PATCH",
-          body: { isVetted },
-        }
-      );
-    }
-
-    console.log(`[Partners API] vetPartner response:`, {
-      status: res.status,
-      ok: res.ok,
-      data: res.data,
-      error: res.error,
-    });
-    return res;
-  } catch (err) {
-    console.error(`[Partners API] vetPartner caught error:`, err);
-    throw err;
   }
+
+  return res;
 }
 
 export async function getAdminPartnerEligibility(
   partnerUserId: string,
   partnerProfileId?: string
 ): Promise<ApiResponse<ApiEnvelope<PartnerEligibilityData>>> {
-  console.log(`[Partners API] getAdminPartnerEligibility request:`, {
-    partnerUserId,
-    partnerProfileId,
-    endpoint: `/admin/partners/${partnerUserId}/eligibility`,
-  });
+  let res = await apiRequest<ApiEnvelope<PartnerEligibilityData>>(
+    `/admin/partners/${partnerUserId}/eligibility`
+  );
 
-  try {
-    let res = await apiRequest<ApiEnvelope<PartnerEligibilityData>>(
-      `/admin/partners/${partnerUserId}/eligibility`
+  if (res.status === 404 && partnerProfileId && partnerProfileId !== partnerUserId) {
+    res = await apiRequest<ApiEnvelope<PartnerEligibilityData>>(
+      `/admin/partners/${partnerProfileId}/eligibility`
     );
-
-    // If 404 and partnerProfileId is available, try fallback
-    if (res.status === 404 && partnerProfileId && partnerProfileId !== partnerUserId) {
-      console.warn(
-        `[Partners API] getAdminPartnerEligibility returned 404, attempting fallback with partnerProfileId: ${partnerProfileId}`
-      );
-      res = await apiRequest<ApiEnvelope<PartnerEligibilityData>>(
-        `/admin/partners/${partnerProfileId}/eligibility`
-      );
-    }
-
-    console.log(`[Partners API] getAdminPartnerEligibility response:`, {
-      status: res.status,
-      ok: res.ok,
-      data: res.data,
-      error: res.error,
-    });
-    return res;
-  } catch (err) {
-    console.error(`[Partners API] getAdminPartnerEligibility caught error:`, err);
-    throw err;
   }
+
+  return res;
 }
 
 // ─── BYOP ─────────────────────────────────────────────────────────────────────

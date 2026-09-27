@@ -10,6 +10,7 @@ import type {
   CampaignActivatePayload,
   Campaign360OverviewResponse,
   CampaignPerformanceResponse,
+  PartnerCampaignPerformanceResponse,
   CampaignEvaluationResponse,
   CampaignPerformancePolicy,
   CampaignPipPayload,
@@ -17,33 +18,40 @@ import type {
 
 // ─── Admin Campaigns Pipeline ─────────────────────────────────────────────────
 
-export function getCampaignQueue(params?: {
+export async function getCampaignQueue(params?: {
   page?: number;
   limit?: number;
-  status?: string;
-  stage?: string;
 }): Promise<ApiResponse<ApiEnvelope<AdminCampaignQueueResponse>>> {
   const query = new URLSearchParams();
   if (params?.page) query.set("page", String(params.page));
-  if (params?.limit) query.set("limit", String(params.limit));
-  if (params?.status) query.set("status", params.status);
-  if (params?.stage) query.set("stage", params.stage);
+  query.set("limit", String(params?.limit ?? 50));
+  // NOTE: backend does not accept status filter — filtering is done client-side
 
-  const qs = query.toString();
-  return apiRequest(`/admin/campaigns/queue${qs ? `?${qs}` : ""}`);
+  const res = await apiRequest<ApiEnvelope<AdminCampaignQueueResponse>>(
+    `/admin/campaigns/queue?${query.toString()}`
+  );
+
+  // Normalise: always expose campaigns array regardless of which key the API used
+  if (res.data?.data) {
+    const list = res.data.data.queue ?? res.data.data.campaigns ?? [];
+    res.data.data.campaigns = list;
+    res.data.data.queue = list;
+  }
+
+  return res;
 }
 
-export function reviewCampaign(
+export async function reviewCampaign(
   campaignId: string,
   payload: CampaignReviewPayload
 ): Promise<ApiResponse<ApiEnvelope<AdminCampaignQueueItem>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/review`, {
-    method: "PATCH",
-    body: payload,
-  });
+  return apiRequest<ApiEnvelope<AdminCampaignQueueItem>>(
+    `/admin/campaigns/${campaignId}/review`,
+    { method: "PATCH", body: payload }
+  );
 }
 
-export function getCampaignMatches(
+export async function getCampaignMatches(
   campaignId: string,
   params?: { minMatchScore?: number; limit?: number }
 ): Promise<ApiResponse<ApiEnvelope<CampaignMatchResponse>>> {
@@ -52,20 +60,22 @@ export function getCampaignMatches(
   if (params?.limit) query.set("limit", String(params.limit));
 
   const qs = query.toString();
-  return apiRequest(`/admin/campaigns/${campaignId}/match${qs ? `?${qs}` : ""}`);
+  const endpoint = `/admin/campaigns/${campaignId}/match${qs ? `?${qs}` : ""}`;
+
+  return apiRequest<ApiEnvelope<CampaignMatchResponse>>(endpoint);
 }
 
-export function assignCampaignPartners(
+export async function assignCampaignPartners(
   campaignId: string,
   payload: AssignCampaignPayload
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; assignedCount: number }>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/assign`, {
-    method: "POST",
-    body: payload,
-  });
+  return apiRequest<ApiEnvelope<{ success: boolean; assignedCount: number }>>(
+    `/admin/campaigns/${campaignId}/assign`,
+    { method: "POST", body: payload }
+  );
 }
 
-export function getCampaignAssignments(
+export async function getCampaignAssignments(
   campaignId: string,
   params?: { status?: string; page?: number; limit?: number }
 ): Promise<ApiResponse<ApiEnvelope<CampaignAssignmentsResponse>>> {
@@ -75,20 +85,23 @@ export function getCampaignAssignments(
   if (params?.limit) query.set("limit", String(params.limit));
 
   const qs = query.toString();
-  return apiRequest(`/admin/campaigns/${campaignId}/assignments${qs ? `?${qs}` : ""}`);
+  const endpoint = `/admin/campaigns/${campaignId}/assignments${qs ? `?${qs}` : ""}`;
+
+  return apiRequest<ApiEnvelope<CampaignAssignmentsResponse>>(endpoint);
 }
 
-export function activateCampaign(
+export async function activateCampaign(
   campaignId: string,
   payload?: CampaignActivatePayload
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; campaign: AdminCampaignQueueItem }>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/activate`, {
-    method: "PATCH",
-    body: payload ?? { generateTrackingLinks: true, notifyPartners: true },
-  });
+  const body = payload ?? { generateTrackingLinks: true, notifyPartners: true };
+  return apiRequest<ApiEnvelope<{ success: boolean; campaign: AdminCampaignQueueItem }>>(
+    `/admin/campaigns/${campaignId}/activate`,
+    { method: "PATCH", body }
+  );
 }
 
-export function getCampaign360Overview(params?: {
+export async function getCampaign360Overview(params?: {
   period?: string;
   status?: string;
 }): Promise<ApiResponse<ApiEnvelope<Campaign360OverviewResponse>>> {
@@ -97,10 +110,12 @@ export function getCampaign360Overview(params?: {
   if (params?.status) query.set("status", params.status);
 
   const qs = query.toString();
-  return apiRequest(`/admin/campaigns/overview/360${qs ? `?${qs}` : ""}`);
+  const endpoint = `/admin/campaigns/overview/360${qs ? `?${qs}` : ""}`;
+
+  return apiRequest<ApiEnvelope<Campaign360OverviewResponse>>(endpoint);
 }
 
-export function getCampaignPerformance(
+export async function getCampaignPerformance(
   campaignId: string,
   params?: { period?: string; breakdown?: string }
 ): Promise<ApiResponse<ApiEnvelope<CampaignPerformanceResponse>>> {
@@ -109,39 +124,52 @@ export function getCampaignPerformance(
   if (params?.breakdown) query.set("breakdown", params.breakdown);
 
   const qs = query.toString();
-  return apiRequest(`/admin/campaigns/${campaignId}/performance${qs ? `?${qs}` : ""}`);
+  const endpoint = `/admin/campaigns/${campaignId}/performance${qs ? `?${qs}` : ""}`;
+
+  return apiRequest<ApiEnvelope<CampaignPerformanceResponse>>(endpoint);
 }
 
-export function evaluateCampaignPerformance(
+export async function evaluateCampaignPerformance(
   campaignId: string
 ): Promise<ApiResponse<ApiEnvelope<CampaignEvaluationResponse>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/performance/evaluate`, {
-    method: "POST",
-  });
+  return apiRequest<ApiEnvelope<CampaignEvaluationResponse>>(
+    `/admin/campaigns/${campaignId}/performance/evaluate`,
+    { method: "POST" }
+  );
 }
 
-export function getCampaignPerformancePolicy(
+export async function getCampaignPerformancePolicy(
   campaignId: string
 ): Promise<ApiResponse<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/performance/policy`);
+  return apiRequest<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>(
+    `/admin/campaigns/${campaignId}/performance/policy`
+  );
 }
 
-export function updateCampaignPerformancePolicy(
+export async function updateCampaignPerformancePolicy(
   campaignId: string,
   policy: CampaignPerformancePolicy
 ): Promise<ApiResponse<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/performance/policy`, {
-    method: "PUT",
-    body: policy,
-  });
+  return apiRequest<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>(
+    `/admin/campaigns/${campaignId}/performance/policy`,
+    { method: "PUT", body: policy }
+  );
 }
 
-export function placeCampaignOnPip(
+export async function placeCampaignOnPip(
   campaignId: string,
   payload: CampaignPipPayload
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; message: string }>>> {
-  return apiRequest(`/admin/campaigns/${campaignId}/pip`, {
-    method: "POST",
-    body: payload,
-  });
+  return apiRequest<ApiEnvelope<{ success: boolean; message: string }>>(
+    `/admin/campaigns/${campaignId}/performance/pip`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function getPartnerCampaignPerformance(
+  partnerUserId: string
+): Promise<ApiResponse<ApiEnvelope<PartnerCampaignPerformanceResponse>>> {
+  return apiRequest<ApiEnvelope<PartnerCampaignPerformanceResponse>>(
+    `/admin/campaigns/partners/${partnerUserId}/performance`
+  );
 }

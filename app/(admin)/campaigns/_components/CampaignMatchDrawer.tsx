@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, X, Loader2, Info } from "lucide-react";
+import { Sparkles, X, Loader2, Info, Building2, Tag, DollarSign, Calendar } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { getCampaignMatches, assignCampaignPartners } from "@/lib/api/admin.api";
 import type { AdminCampaignQueueItem, CampaignMatchPartner } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface CampaignMatchDrawerProps {
   campaign: AdminCampaignQueueItem;
@@ -24,11 +25,32 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
 
   const canRunMatching = campaign.status === "matching";
 
+  console.log(
+    `%c[CampaignMatchDrawer] Opened match drawer for campaign: ${campaign.id}`,
+    "color: #10b981; font-weight: bold;",
+    campaign
+  );
+
+  const orgName = campaign.organization?.name ?? campaign.organizationName ?? "Client Org";
+  const currency = campaign.budgetCurrency ?? campaign.currency ?? "USD";
+  const formattedBudget = campaign.budgetAmount
+    ? Number(campaign.budgetAmount).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : campaign.budgetMinor
+    ? (campaign.budgetMinor / 100).toLocaleString()
+    : campaign.budget
+    ? Number(campaign.budget).toLocaleString()
+    : "N/A";
+
   const { data: matchData, isLoading: matchesLoading } = useQuery({
     queryKey: ["admin", "campaigns", "matches", campaign.id],
     queryFn: async () => {
+      console.log("[CampaignMatchDrawer] Requesting AI matches for campaign:", campaign.id);
       const res = await getCampaignMatches(campaign.id, { minMatchScore: 50, limit: 15 });
       if (res.error) throw new Error(res.error);
+      console.log("[CampaignMatchDrawer] Matches returned:", res.data?.data);
       return res.data?.data;
     },
     // Only run the matching engine query when the campaign is in `matching` status
@@ -38,16 +60,23 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (selectedPartnerIds.length === 0) return;
-      const res = await assignCampaignPartners(campaign.id, {
+      const payload = {
         partnerUserIds: selectedPartnerIds,
         destinationUrl,
         invitationType,
         customMessage: customAssignMessage || undefined,
-      });
+      };
+      console.log(
+        `%c[CampaignMatchDrawer] Assigning partners to ${campaign.id}:`,
+        "color: #f59e0b; font-weight: bold;",
+        payload
+      );
+      const res = await assignCampaignPartners(campaign.id, payload);
       if (res.error) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[CampaignMatchDrawer] Partner assignment success:", data);
       queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] });
       if (onAssigned) {
         // Hand off to Assignments modal so admin can see who was just invited
@@ -55,6 +84,9 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
       } else {
         onClose();
       }
+    },
+    onError: (err) => {
+      console.error("[CampaignMatchDrawer] Assignment failed:", err);
     },
   });
 
@@ -75,6 +107,32 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Campaign Info Summary Bar */}
+        <div className="mx-5 mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-1.5 font-medium text-slate-700">
+            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            <span>{orgName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Tag className="w-3.5 h-3.5 text-slate-400" />
+            <span>{campaign.category ?? "General"}</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+            <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+            <span>
+              {currency} {formattedBudget}
+            </span>
+          </div>
+          {campaign.startDate && campaign.endDate ? (
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                {format(new Date(campaign.startDate), "MMM d")} - {format(new Date(campaign.endDate), "MMM d, yyyy")}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div className="p-5 overflow-y-auto flex-1 space-y-4">

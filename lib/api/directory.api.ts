@@ -8,7 +8,15 @@ import type {
 
 // ─── Directory Contacts CRM ──────────────────────────────────────────────────
 
-export function listDirectoryContacts(params?: {
+// API returns contacts as [{ contact: {...}, addedBy: {...} }]
+// Flatten into DirectoryContact with addedBy attached
+function unwrapContacts(
+  raw: { contact: DirectoryContact; addedBy: DirectoryContact["addedBy"] }[]
+): DirectoryContact[] {
+  return raw.map(({ contact, addedBy }) => ({ ...contact, addedBy }));
+}
+
+export async function listDirectoryContacts(params?: {
   page?: number;
   limit?: number;
 }): Promise<ApiResponse<ApiEnvelope<DirectoryContactsResponse>>> {
@@ -17,7 +25,17 @@ export function listDirectoryContacts(params?: {
   if (params?.limit) query.set("limit", String(params.limit));
 
   const qs = query.toString();
-  return apiRequest(`/admin/directory-contacts${qs ? `?${qs}` : ""}`);
+  const res = await apiRequest<ApiEnvelope<DirectoryContactsResponse>>(
+    `/admin/directory-contacts${qs ? `?${qs}` : ""}`
+  );
+
+  if (res.data?.data?.contacts) {
+    res.data.data.contacts = unwrapContacts(
+      res.data.data.contacts as unknown as { contact: DirectoryContact; addedBy: DirectoryContact["addedBy"] }[]
+    );
+  }
+
+  return res;
 }
 
 export function getDirectoryContact(

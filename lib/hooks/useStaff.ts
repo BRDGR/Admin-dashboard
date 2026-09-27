@@ -8,7 +8,7 @@ export function useStaff(page = 1, limit = 10) {
     queryKey: ["admin", "staff", page, limit],
     queryFn: async () => {
       const res = await listStaff(page, limit);
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Failed to load staff");
       return res.data?.data as StaffResponse;
     },
   });
@@ -19,7 +19,7 @@ export function useStaffMember(staffId: string) {
     queryKey: ["admin", "staff", staffId],
     queryFn: async () => {
       const res = await getStaffMember(staffId);
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Failed to load staff member");
       return res.data?.data?.staff as StaffMember;
     },
     enabled: Boolean(staffId),
@@ -43,7 +43,7 @@ export function useAdminProfile() {
     queryKey: ["admin", "profile"],
     queryFn: async () => {
       const res = await getAdminProfile();
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Failed to load profile");
       return res.data?.data?.user as StaffMember;
     },
   });
@@ -54,7 +54,7 @@ export function useSeedHistory() {
     queryKey: ["admin", "seed-history"],
     queryFn: async () => {
       const res = await getSeedHistory();
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Failed to load seed history");
       return res.data?.data as SeedHistoryResponse;
     },
   });

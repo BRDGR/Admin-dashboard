@@ -3,18 +3,128 @@
 import {
   Megaphone,
   Play,
-  AlertTriangle,
-  DollarSign,
+  GitMerge,
+  CheckCircle2,
+  XCircle,
+  Clock,
   TrendingUp,
-  BarChart3,
+  Users,
   Loader2,
+  Building2,
+  Tag,
+  Calendar,
 } from "lucide-react";
-import { SectionCard, MetricCard, StatusBadge, EmptyState } from "@/components/ui";
-import type { Campaign360OverviewResponse } from "@/lib/types";
+import { SectionCard, StatusBadge, EmptyState } from "@/components/ui";
+import type { Campaign360OverviewResponse, Campaign360CampaignItem } from "@/lib/types";
+import { format } from "date-fns";
 
 interface Campaign360TabProps {
   overview?: Campaign360OverviewResponse;
   isLoading: boolean;
+}
+
+function StatPill({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ElementType;
+  color: string;
+}) {
+  return (
+    <div className={`flex items-center gap-3 p-4 rounded-xl border ${color}`}>
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/60">
+        <Icon className="w-4 h-4" />
+      </div>
+      <div>
+        <p className="text-[11px] font-medium opacity-70">{label}</p>
+        <p className="text-lg font-bold leading-tight">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function CampaignRow({ campaign }: { campaign: Campaign360CampaignItem }) {
+  const achievement = campaign.achievementPct ?? 0;
+  const barColor =
+    achievement >= 75
+      ? "bg-emerald-500"
+      : achievement >= 40
+      ? "bg-amber-400"
+      : "bg-rose-400";
+
+  return (
+    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-slate-900 truncate">{campaign.name}</p>
+          {campaign.organization?.name && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="text-[11px] text-slate-500 truncate">{campaign.organization.name}</span>
+            </div>
+          )}
+        </div>
+        <StatusBadge status={campaign.status} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600">
+        {campaign.category && (
+          <div className="flex items-center gap-1">
+            <Tag className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="truncate">{campaign.category}</span>
+          </div>
+        )}
+        {campaign.startDate && campaign.endDate && (
+          <div className="flex items-center gap-1 col-span-2">
+            <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+            <span>
+              {format(new Date(campaign.startDate), "MMM d")} –{" "}
+              {format(new Date(campaign.endDate), "MMM d, yyyy")}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div className="flex items-center gap-1.5 text-slate-600">
+          <Users className="w-3 h-3 text-slate-400" />
+          <span>
+            <span className="font-semibold text-slate-800">{campaign.activePartners ?? 0}</span>
+            {" / "}
+            {campaign.partnersAssigned ?? 0} partners
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-slate-600">
+          <TrendingUp className="w-3 h-3 text-slate-400" />
+          <span>
+            <span className="font-semibold text-slate-800">
+              {(campaign.totalTraffic ?? 0).toLocaleString()}
+            </span>
+            {" / "}
+            {(campaign.targetTraffic ?? 0).toLocaleString()} traffic
+          </span>
+        </div>
+      </div>
+
+      {/* Achievement bar */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-slate-400">Achievement</span>
+          <span className="text-[10px] font-bold text-slate-700">{achievement.toFixed(0)}%</span>
+        </div>
+        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${barColor}`}
+            style={{ width: `${Math.min(achievement, 100)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function Campaign360Tab({ overview, isLoading }: Campaign360TabProps) {
@@ -26,100 +136,113 @@ export function Campaign360Tab({ overview, isLoading }: Campaign360TabProps) {
     );
   }
 
-  if (!overview?.metrics) {
+  if (!overview?.summary) {
     return (
       <EmptyState
         title="No 360 overview data"
-        description="Launch campaigns to generate platform telemetry and revenue metrics."
+        description="Launch campaigns to generate platform telemetry and performance metrics."
       />
     );
   }
 
+  const { summary, campaigns = [] } = overview;
+
+  const activeCampaigns = campaigns.filter((c) => c.status === "active");
+  const matchingCampaigns = campaigns.filter((c) => c.status === "matching");
+  const cancelledCampaigns = campaigns.filter((c) => c.status === "cancelled");
+  const pendingCampaigns = campaigns.filter(
+    (c) => !["active", "matching", "cancelled", "completed"].includes(c.status)
+  );
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <MetricCard
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatPill
           label="Total Campaigns"
-          value={overview.metrics.totalCampaigns}
+          value={summary.totalCampaigns}
           icon={Megaphone}
-          iconBg="bg-blue-50 text-[#0364FF]"
+          color="bg-blue-50 border-blue-100 text-blue-700"
         />
-        <MetricCard
-          label="Active Live"
-          value={overview.metrics.activeCampaigns}
+        <StatPill
+          label="Active"
+          value={summary.activeCampaigns}
           icon={Play}
-          iconBg="bg-emerald-50 text-emerald-600"
+          color="bg-emerald-50 border-emerald-100 text-emerald-700"
         />
-        <MetricCard
-          label="In-Review Queue"
-          value={overview.metrics.inReviewCount}
-          icon={AlertTriangle}
-          iconBg="bg-amber-50 text-amber-600"
+        <StatPill
+          label="Matching"
+          value={summary.matchingCampaigns}
+          icon={GitMerge}
+          color="bg-indigo-50 border-indigo-100 text-indigo-700"
         />
-        <MetricCard
-          label="Total Budget"
-          value={`$${(overview.metrics.totalBudgetAllocated / 100).toLocaleString()}`}
-          icon={DollarSign}
-          iconBg="bg-indigo-50 text-indigo-600"
+        <StatPill
+          label="Completed"
+          value={summary.completedCampaigns}
+          icon={CheckCircle2}
+          color="bg-slate-50 border-slate-200 text-slate-600"
         />
-        <MetricCard
-          label="Conversions"
-          value={overview.metrics.totalConversions.toLocaleString()}
-          icon={TrendingUp}
-          iconBg="bg-purple-50 text-purple-600"
-        />
-        <MetricCard
-          label="Average ROI"
-          value={overview.metrics.averageRoi ? `${overview.metrics.averageRoi}x` : "3.4x"}
-          icon={BarChart3}
-          iconBg="bg-cyan-50 text-cyan-600"
+        <StatPill
+          label="Pending Review"
+          value={summary.pendingReviewCampaigns}
+          icon={Clock}
+          color="bg-amber-50 border-amber-100 text-amber-700"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SectionCard title="Campaigns by Status">
-          <div className="space-y-3 mt-2">
-            {Object.entries(overview.breakdownByStatus ?? {}).map(([st, count]) => (
-              <div
-                key={st}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
-              >
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={st} />
-                  <span className="text-xs font-semibold text-slate-700 capitalize">
-                    {st.replace(/_/g, " ")}
-                  </span>
-                </div>
-                <span className="text-xs font-bold text-slate-900">{count} campaigns</span>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Top Performing Campaigns">
-          <div className="space-y-3 mt-2">
-            {(overview.topPerformingCampaigns ?? []).length > 0 ? (
-              overview.topPerformingCampaigns?.map((camp) => (
-                <div
-                  key={camp.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">{camp.name}</p>
-                    <p className="text-[11px] text-slate-400">{camp.conversions} conversions</p>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-600">
-                    ${(camp.revenue / 100).toLocaleString()}
-                  </span>
-                </div>
-              ))
+        {/* Active campaigns */}
+        <SectionCard title={`Active Campaigns (${activeCampaigns.length})`}>
+          <div className="space-y-2.5 mt-2">
+            {activeCampaigns.length > 0 ? (
+              activeCampaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)
             ) : (
-              <p className="text-xs text-slate-400 text-center py-6">
-                No active performance data available yet.
-              </p>
+              <p className="text-xs text-slate-400 text-center py-6">No active campaigns.</p>
             )}
           </div>
         </SectionCard>
+
+        {/* Matching campaigns */}
+        <SectionCard title={`In Matching (${matchingCampaigns.length})`}>
+          <div className="space-y-2.5 mt-2">
+            {matchingCampaigns.length > 0 ? (
+              matchingCampaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-6">No campaigns in matching.</p>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* Pending / other */}
+        {pendingCampaigns.length > 0 && (
+          <SectionCard title={`Pending / Other (${pendingCampaigns.length})`}>
+            <div className="space-y-2.5 mt-2">
+              {pendingCampaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Cancelled */}
+        {cancelledCampaigns.length > 0 && (
+          <SectionCard title={`Cancelled (${cancelledCampaigns.length})`}>
+            <div className="space-y-2.5 mt-2">
+              {cancelledCampaigns.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{c.name}</p>
+                    {c.organization?.name && (
+                      <p className="text-[11px] text-slate-400 truncate">{c.organization.name}</p>
+                    )}
+                  </div>
+                  <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        )}
       </div>
     </div>
   );

@@ -36,13 +36,9 @@ export default function AdminCampaignsPage() {
 
   // Queries
   const { data: queueData, isLoading: queueLoading } = useQuery({
-    queryKey: ["admin", "campaigns", "queue", page, statusFilter],
+    queryKey: ["admin", "campaigns", "queue", page],
     queryFn: async () => {
-      const res = await getCampaignQueue({
-        page,
-        limit: 10,
-        status: statusFilter || undefined,
-      });
+      const res = await getCampaignQueue({ page, limit: 50 });
       if (res.error) throw new Error(res.error);
       return res.data?.data;
     },
@@ -52,13 +48,12 @@ export default function AdminCampaignsPage() {
     queryKey: ["admin", "campaigns", "overview-360"],
     queryFn: async () => {
       const res = await getCampaign360Overview();
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Failed to load 360 overview");
       return res.data?.data;
     },
     enabled: activeTab === "360 Overview",
   });
 
-  // Activation Mutation
   const activateMutation = useMutation({
     mutationFn: async (campaignId: string) => {
       const res = await activateCampaign(campaignId, {
@@ -73,17 +68,24 @@ export default function AdminCampaignsPage() {
     },
   });
 
-  // Filtered queue items — API returns `queue`, not `campaigns`
-  const queueItems = (queueData?.campaigns ?? []).filter((item) => {
+  const rawCampaigns: AdminCampaignQueueItem[] =
+    queueData?.campaigns ?? queueData?.queue ?? [];
+
+  // Status filtering is client-side — backend does not accept status query param
+  const queueItems = rawCampaigns.filter((item) => {
+    if (statusFilter && item.status !== statusFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
+    const orgName = (item.organization as { name?: string } | undefined)?.name ?? item.organizationName ?? "";
     return (
       item.name?.toLowerCase().includes(q) ||
-      item.organizationName?.toLowerCase().includes(q) ||
-      (item.organization as { name?: string } | undefined)?.name?.toLowerCase().includes(q) ||
+      orgName.toLowerCase().includes(q) ||
       item.status?.toLowerCase().includes(q)
     );
   });
+
+  const totalRecords = statusFilter ? queueItems.length : (queueData?.pagination?.totalRecords ?? rawCampaigns.length);
+  const totalPages = queueData?.pagination?.totalPages ?? (totalRecords > 0 ? Math.ceil(totalRecords / 50) : 1);
 
   return (
     <div className="space-y-6">
@@ -114,8 +116,8 @@ export default function AdminCampaignsPage() {
       {activeTab === "Queue & Approvals" && (
         <CampaignQueueTab
           campaigns={queueItems}
-          totalRecords={queueData?.pagination?.totalRecords ?? 0}
-          totalPages={queueData?.pagination?.totalPages ?? 1}
+          totalRecords={totalRecords}
+          totalPages={totalPages}
           page={page}
           isLoading={queueLoading}
           isActivating={activateMutation.isPending}
@@ -125,11 +127,11 @@ export default function AdminCampaignsPage() {
             setPage(1);
           }}
           onSearchChange={setSearch}
-          onReview={(campaign) => setReviewingCampaign(campaign)}
-          onMatch={(campaign) => setMatchingCampaign(campaign)}
-          onViewAssignments={(campaign) => setViewingAssignmentsCamp(campaign)}
+          onReview={setReviewingCampaign}
+          onMatch={setMatchingCampaign}
+          onViewAssignments={setViewingAssignmentsCamp}
           onActivate={(campaignId) => activateMutation.mutate(campaignId)}
-          onViewPerformance={(campaign) => setPerfCampaign(campaign)}
+          onViewPerformance={setPerfCampaign}
         />
       )}
 
@@ -145,7 +147,6 @@ export default function AdminCampaignsPage() {
           campaign={reviewingCampaign}
           onClose={() => setReviewingCampaign(null)}
           onApproved={(updatedCampaign) => {
-            // Close review modal and immediately open the Match Drawer
             setReviewingCampaign(null);
             setMatchingCampaign(updatedCampaign);
           }}
@@ -157,7 +158,6 @@ export default function AdminCampaignsPage() {
           campaign={matchingCampaign}
           onClose={() => setMatchingCampaign(null)}
           onAssigned={(updatedCampaign) => {
-            // Close match drawer and open Assignments modal to show invited partners
             setMatchingCampaign(null);
             setViewingAssignmentsCamp(updatedCampaign);
           }}

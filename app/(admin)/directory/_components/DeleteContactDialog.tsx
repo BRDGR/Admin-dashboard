@@ -18,12 +18,12 @@ export function DeleteContactDialog({ contact, onClose, onSuccess }: DeleteConta
   if (!contact) return null;
 
   async function handleDelete() {
-    if (!contact) return;
+    if (!contact?.id) return;
     try {
       setIsDeleting(true);
       const res = await deleteDirectoryContact(contact.id);
-      if (res.data?.error) {
-        toast.error(res.data.message || "Failed to delete contact");
+      if (!res.ok) {
+        toast.error(res.error ?? "Failed to delete contact");
         return;
       }
       toast.success("Contact deleted from directory");

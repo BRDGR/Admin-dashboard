@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
-import { Button } from "@/components/ui";
+import { X, Building2, Tag, DollarSign, Calendar, ShieldCheck } from "lucide-react";
+import { Button, StatusBadge } from "@/components/ui";
 import { reviewCampaign } from "@/lib/api/admin.api";
 import type { AdminCampaignQueueItem, CampaignReviewPayload } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface CampaignReviewModalProps {
   campaign: AdminCampaignQueueItem;
@@ -21,11 +22,23 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
   const [reviewReason, setReviewReason] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewChanges, setReviewChanges] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const orgName = campaign.organization?.name ?? campaign.organizationName ?? "Client Org";
+  const currency = campaign.budgetCurrency ?? campaign.currency ?? "USD";
+  const formattedBudget = campaign.budgetAmount
+    ? Number(campaign.budgetAmount).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : campaign.budgetMinor
+    ? (campaign.budgetMinor / 100).toLocaleString()
+    : campaign.budget
+    ? Number(campaign.budget).toLocaleString()
+    : "N/A";
 
   const reviewMutation = useMutation({
     mutationFn: async () => {
-      // Map UI actions → API status values
-      // API accepts: status must be one of: matching, active, cancelled
       const statusMap = {
         approve: "matching",
         reject: "cancelled",
@@ -40,18 +53,21 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
           ? reviewChanges.split("\n").filter(Boolean)
           : undefined,
       };
+
       const res = await reviewCampaign(campaign.id, payload);
-      if (res.error) throw new Error(res.error);
+      if (!res.ok) throw new Error(res.error ?? "Review submission failed");
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "campaigns", "queue"] });
       if (reviewAction === "approve" && onApproved) {
-        // Promote status to `matching` locally so the Match Drawer opens immediately
         onApproved({ ...campaign, status: "matching" });
       } else {
         onClose();
       }
+    },
+    onError: (err: Error) => {
+      setSubmitError(err.message);
     },
   });
 
@@ -69,6 +85,43 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Campaign Info Summary Card */}
+        <div className="mx-5 mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-800 text-[13px]">{campaign.name}</span>
+            <StatusBadge status={campaign.status} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-slate-600 pt-1 border-t border-slate-200/60">
+            <div className="flex items-center gap-1.5 truncate">
+              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate font-medium">{orgName}</span>
+            </div>
+            <div className="flex items-center gap-1.5 truncate">
+              <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">{campaign.category ?? "General"}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="font-semibold text-slate-800">
+                {currency} {formattedBudget}
+              </span>
+            </div>
+            {campaign.startDate && campaign.endDate ? (
+              <div className="flex items-center gap-1.5 truncate">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {format(new Date(campaign.startDate), "MMM d")} - {format(new Date(campaign.endDate), "MMM d, yyyy")}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Ongoing</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-5 space-y-4">
@@ -154,6 +207,9 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
           </div>
         </div>
 
+        {submitError && (
+          <p className="px-5 pb-3 text-xs text-rose-600 font-medium">{submitError}</p>
+        )}
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={onClose}>
             Cancel

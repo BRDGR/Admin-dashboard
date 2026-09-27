@@ -11,6 +11,7 @@ import {
   Sparkles,
   Users,
   Activity,
+  Calendar,
 } from "lucide-react";
 import {
   SectionCard,
@@ -63,42 +64,82 @@ export function CampaignQueueTab({
     {
       key: "campaign",
       header: "Campaign & Client",
-      render: (item) => (
-        <div>
-          <p className="text-[13px] font-semibold text-slate-900">{item.name}</p>
-          <p className="text-[11px] text-slate-500">{item.organizationName ?? "Client Org"}</p>
-        </div>
-      ),
+      render: (item) => {
+        const orgName = item.organization?.name ?? item.organizationName ?? "Client Org";
+        return (
+          <div className="space-y-0.5">
+            <p className="text-[13px] font-semibold text-slate-900 leading-tight">{item.name}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] text-slate-500 font-medium">{orgName}</span>
+              {item.category && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium border border-purple-100">
+                  {item.category}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "budget",
       header: "Commercials",
-      render: (item) => (
-        <div>
-          <span className="text-xs font-bold text-slate-800">
-            {item.currency ?? "USD"} {item.budgetMinor ? (item.budgetMinor / 100).toLocaleString() : "N/A"}
-          </span>
-          <p className="text-[10px] text-slate-400 capitalize">{item.partnershipModel ?? "CPA"}</p>
-        </div>
-      ),
+      render: (item) => {
+        const currency = item.budgetCurrency ?? item.currency ?? "USD";
+        const formattedAmount = item.budgetAmount
+          ? Number(item.budgetAmount).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : item.budgetMinor
+          ? (item.budgetMinor / 100).toLocaleString()
+          : item.budget
+          ? Number(item.budget).toLocaleString()
+          : "N/A";
+        const model = item.partnershipModel ?? item.category ?? "CPA";
+        return (
+          <div>
+            <span className="text-xs font-bold text-slate-800">
+              {currency} {formattedAmount}
+            </span>
+            <p className="text-[10px] text-slate-400 capitalize">{model}</p>
+          </div>
+        );
+      },
     },
     {
-      key: "targeting",
-      header: "Targeting",
-      render: (item) => (
-        <div className="flex flex-wrap gap-1 max-w-[200px]">
-          {(item.targetRegions ?? []).slice(0, 2).map((r: string, i: number) => (
-            <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-              {r}
-            </span>
-          ))}
-          {(item.targetNiches ?? []).slice(0, 1).map((n: string, i: number) => (
-            <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded bg-blue-50 text-[#0364FF]">
-              {n}
-            </span>
-          ))}
-        </div>
-      ),
+      key: "timeline",
+      header: "Timeline & Targeting",
+      render: (item) => {
+        const hasDates = item.startDate && item.endDate;
+        return (
+          <div className="space-y-1">
+            {hasDates ? (
+              <div className="flex items-center gap-1 text-[11px] font-medium text-slate-700">
+                <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                <span>
+                  {format(new Date(item.startDate!), "MMM d")} - {format(new Date(item.endDate!), "MMM d, yyyy")}
+                </span>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-1 max-w-[200px]">
+              {(item.targetRegions ?? []).slice(0, 2).map((r: string, i: number) => (
+                <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                  {r}
+                </span>
+              ))}
+              {(item.targetNiches ?? []).slice(0, 1).map((n: string, i: number) => (
+                <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded bg-blue-50 text-[#0364FF]">
+                  {n}
+                </span>
+              ))}
+              {!hasDates && !(item.targetRegions?.length) && !(item.targetNiches?.length) && (
+                <span className="text-[10px] text-slate-400">Standard / Global</span>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -111,7 +152,7 @@ export function CampaignQueueTab({
       render: (item) => (
         <span className="text-xs text-slate-400">
           {item.submittedAt || item.createdAt
-            ? format(new Date(item.submittedAt || item.createdAt as string), "MMM d, yyyy")
+            ? format(new Date((item.submittedAt || item.createdAt) as string), "MMM d, yyyy")
             : "Recent"}
         </span>
       ),
@@ -122,25 +163,34 @@ export function CampaignQueueTab({
       render: (item) => (
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Review button — available on pending_review, submitted, in_review, changes_requested */}
-          {(item.status === "pending_review" || item.status === "submitted" || item.status === "in_review" || item.status === "changes_requested") && (
+          {(item.status === "pending_review" ||
+            item.status === "submitted" ||
+            item.status === "in_review" ||
+            item.status === "changes_requested") && (
             <Button
               size="sm"
               variant="outline"
               className="text-xs h-7 px-2.5 text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
-              onClick={() => onReview(item)}
+              onClick={() => {
+                console.log("[CampaignQueueTab] Triggered review on:", item.id, item.name);
+                onReview(item);
+              }}
             >
               Review
             </Button>
           )}
 
-          {/* AI Match & Assign — only available once campaign is in `matching` status */}
+          {/* AI Match & Assign — available once campaign is in `matching` status */}
           {item.status === "matching" && (
             <Button
               size="sm"
               variant="ghost"
               title="AI Match & Assign Partners"
               className="text-xs h-7 px-2 text-[#0364FF] hover:bg-blue-50 cursor-pointer"
-              onClick={() => onMatch(item)}
+              onClick={() => {
+                console.log("[CampaignQueueTab] Triggered match on:", item.id, item.name);
+                onMatch(item);
+              }}
             >
               <Sparkles className="w-3.5 h-3.5 mr-1 text-[#0364FF]" />
               Match
@@ -153,7 +203,10 @@ export function CampaignQueueTab({
             variant="ghost"
             title="View Partner Assignments"
             className="text-xs h-7 px-2 text-slate-600 hover:bg-slate-100 cursor-pointer"
-            onClick={() => onViewAssignments(item)}
+            onClick={() => {
+              console.log("[CampaignQueueTab] Triggered view assignments on:", item.id);
+              onViewAssignments(item);
+            }}
           >
             <Users className="w-3.5 h-3.5" />
           </Button>
@@ -165,7 +218,10 @@ export function CampaignQueueTab({
               variant="primary"
               className="text-xs h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
               isLoading={isActivating}
-              onClick={() => onActivate(item.id)}
+              onClick={() => {
+                console.log("[CampaignQueueTab] Triggered activate on:", item.id);
+                onActivate(item.id);
+              }}
             >
               <Play className="w-3 h-3 mr-1" />
               Activate
@@ -179,7 +235,10 @@ export function CampaignQueueTab({
               variant="ghost"
               title="Performance & Health"
               className="text-xs h-7 px-2 text-purple-600 hover:bg-purple-50 cursor-pointer"
-              onClick={() => onViewPerformance(item)}
+              onClick={() => {
+                console.log("[CampaignQueueTab] Triggered performance modal on:", item.id);
+                onViewPerformance(item);
+              }}
             >
               <Activity className="w-3.5 h-3.5" />
             </Button>
@@ -189,37 +248,54 @@ export function CampaignQueueTab({
     },
   ];
 
+  const pendingReviewCount = campaigns.filter(
+    (c) => c.status === "pending_review" || c.status === "submitted" || c.status === "in_review"
+  ).length;
+
+  const matchingCount = campaigns.filter(
+    (c) => c.status === "approved" || c.status === "matching" || c.status === "assigned"
+  ).length;
+
+  const activeCount = campaigns.filter((c) => c.status === "active").length;
+
+  const changesCount = campaigns.filter(
+    (c) => c.status === "changes_requested" || c.status === "rejected" || c.status === "cancelled"
+  ).length;
+
   return (
     <div className="space-y-4">
       {/* Quick Metrics Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MetricCard
           label="Pending Review"
-          value={totalRecords}
+          value={pendingReviewCount || totalRecords}
           icon={Layers}
           iconBg="bg-blue-50 text-[#0364FF]"
         />
         <MetricCard
-          label="Approved"
-          value={campaigns.filter((c) => c.status === "approved").length}
+          label="Matching / Approved"
+          value={matchingCount}
           icon={CheckCircle}
           iconBg="bg-emerald-50 text-emerald-600"
         />
         <MetricCard
           label="Active Live"
-          value={campaigns.filter((c) => c.status === "active").length}
+          value={activeCount}
           icon={Play}
           iconBg="bg-purple-50 text-purple-600"
         />
         <MetricCard
-          label="Changes Requested"
-          value={campaigns.filter((c) => c.status === "changes_requested").length}
+          label="Changes / Rejected"
+          value={changesCount}
           icon={AlertTriangle}
           iconBg="bg-amber-50 text-amber-600"
         />
       </div>
 
-      <SectionCard title="Campaign Review Queue" subtitle="Incoming campaigns requiring administrative approval and matching">
+      <SectionCard
+        title="Campaign Review Queue"
+        subtitle="Incoming campaigns requiring administrative approval, AI partner matching, and activation"
+      >
         {/* Filter Controls */}
         <div className="p-5 pb-0">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
@@ -227,7 +303,7 @@ export function CampaignQueueTab({
               <div className="relative flex-1 sm:w-64">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                 <input
-                  placeholder="Search campaigns..."
+                  placeholder="Search by name, client, category..."
                   value={localSearch}
                   onChange={(e) => {
                     setLocalSearch(e.target.value);
@@ -249,10 +325,12 @@ export function CampaignQueueTab({
                 <option value="submitted">Submitted</option>
                 <option value="in_review">In Review</option>
                 <option value="matching">Matching</option>
+                <option value="assigned">Assigned</option>
                 <option value="approved">Approved</option>
                 <option value="changes_requested">Changes Requested</option>
                 <option value="active">Active</option>
                 <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
 
