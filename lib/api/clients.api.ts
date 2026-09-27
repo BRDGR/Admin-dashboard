@@ -92,7 +92,7 @@ export async function listClients(
       };
     });
 
-    const pagination = res.data?.pagination || rawData?.pagination || {
+    const pagination = (res.data as any)?.pagination || rawData?.pagination || {
       currentPage: page,
       nextPage: null,
       prevPage: null,

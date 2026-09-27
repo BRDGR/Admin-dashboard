@@ -80,7 +80,7 @@ export default function AdminCampaignsPage() {
     return (
       item.name?.toLowerCase().includes(q) ||
       item.organizationName?.toLowerCase().includes(q) ||
-      item.organization?.name?.toLowerCase().includes(q) ||
+      (item.organization as { name?: string } | undefined)?.name?.toLowerCase().includes(q) ||
       item.status?.toLowerCase().includes(q)
     );
   });
