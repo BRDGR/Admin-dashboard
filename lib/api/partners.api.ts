@@ -4,6 +4,7 @@ import type {
   PartnersResponse,
   ByopRelationshipsResponse,
   ByopRelationship,
+  ByopAnalytics,
   PartnerEligibilityData,
 } from "@/lib/types";
 
@@ -97,6 +98,52 @@ export function deleteByopInvitations(): Promise<ApiResponse<ApiEnvelope<unknown
   return apiRequest("/admin/byop/invitations", { method: "DELETE" });
 }
 
-export function getByopAnalytics(): Promise<ApiResponse<ApiEnvelope<unknown>>> {
-  return apiRequest("/admin/byop/analytics");
+export function getByopAnalytics(): Promise<ApiResponse<ApiEnvelope<ByopAnalytics>>> {
+  return apiRequest<ApiEnvelope<ByopAnalytics>>("/admin/byop/analytics");
+}
+
+export function deletePartner(
+  partnerUserId: string
+): Promise<ApiResponse<ApiEnvelope<{ success: boolean }>>> {
+  return apiRequest<ApiEnvelope<{ success: boolean }>>(
+    `/admin/partners/${partnerUserId}`,
+    { method: "DELETE" }
+  );
+}
+
+// ─── Admin Invite Codes ───────────────────────────────────────────────────────
+
+export function listAdminInviteCodes(params?: {
+  orgId?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ApiResponse<ApiEnvelope<{ inviteCodes: any[] }>>> {
+  const query = new URLSearchParams();
+  if (params?.orgId) query.set("orgId", params.orgId);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return apiRequest(`/admin/invite${qs}`);
+}
+
+export function getAdminInviteCode(
+  codeId: string
+): Promise<ApiResponse<ApiEnvelope<{ inviteCode: any }>>> {
+  return apiRequest(`/admin/invite/${codeId}`);
+}
+
+export interface AdminByopInvitePayload {
+  clientOrgId: string;
+  partnerEmail: string;
+  firstName: string;
+  lastName: string;
+}
+
+export function adminInviteByopPartner(
+  payload: AdminByopInvitePayload
+): Promise<ApiResponse<ApiEnvelope<unknown>>> {
+  return apiRequest<ApiEnvelope<unknown>, AdminByopInvitePayload>("/byop/invite", {
+    method: "POST",
+    body: payload,
+  });
 }

@@ -3,14 +3,15 @@
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Trash2, AlertTriangle } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import { StatusBadge, Button } from "@/components/ui";
 import { usePartner } from "@/lib/hooks/usePartners";
 import { usePartnerKycList } from "@/lib/hooks/useKyc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { vetPartner } from "@/lib/api/admin.api";
+import { vetPartner, deletePartner } from "@/lib/api/admin.api";
 import { toast } from "sonner";
+import { useState } from "react";
 import { PartnerProfileCard } from "./_components/PartnerProfileCard";
 import { PartnerStatusSidebar } from "./_components/PartnerStatusSidebar";
 
@@ -142,6 +143,24 @@ export default function PartnerDetailPage({
     );
   }
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await deletePartner(userId);
+      if (!res.ok) throw new Error(res.error || "Failed to delete partner");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Partner record deleted successfully");
+      qc.invalidateQueries({ queryKey: ["admin", "partners"] });
+      router.push("/partners");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to delete partner");
+    },
+  });
+
   return (
     <div className="space-y-6">
       <AdminTopBar />
@@ -180,6 +199,37 @@ export default function PartnerDetailPage({
               onClick={() => vetMutation.mutate(true)}
             >
               <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Approve & Vet
+            </Button>
+          )}
+
+          {confirmDelete ? (
+            <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-slate-200">
+              <Button
+                variant="danger"
+                size="sm"
+                isLoading={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Confirm Delete
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+              className="text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 ml-2"
+              title="Delete partner record"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           )}
         </div>

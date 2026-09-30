@@ -235,3 +235,12 @@ export async function getClient(
 
   return res;
 }
+
+export async function deleteClient(
+  clientUserId: string
+): Promise<ApiResponse<ApiEnvelope<{ success: boolean }>>> {
+  return apiRequest<ApiEnvelope<{ success: boolean }>>(
+    `/admin/clients/${clientUserId}`,
+    { method: "DELETE" }
+  );
+}

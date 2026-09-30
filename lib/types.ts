@@ -54,7 +54,7 @@ export interface AdminUser {
   firstName: string;
   lastName: string;
   email: string;
-  role: "partner" | "client" | "admin" | "ops_admin";
+  role: "partner" | "client" | "admin" | "ops_admin" | "super_admin" | "staff" | "reviewer" | "support" | string;
   isActive: boolean;
   emailVerifiedAt: string | null;
   createdAt: string;
@@ -63,6 +63,23 @@ export interface AdminUser {
 export interface UsersResponse {
   users: AdminUser[];
   pagination: Pagination;
+}
+
+export interface AdminInviteCodeRecord {
+  id: string;
+  orgId: string;
+  code: string;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  organization?: {
+    id: string;
+    name: string;
+    companyType?: string;
+  };
 }
 
 // ─── Partners ─────────────────────────────────────────────────────────────────

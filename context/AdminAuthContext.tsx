@@ -65,8 +65,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
       const { user, tokens } = res.data.data;
 
-      // Guard: only allow admin/ops_admin roles
-      if (user.role !== "admin" && user.role !== "ops_admin") {
+      // Guard: allow all administrative/staff roles
+      const allowedRoles = ["admin", "ops_admin", "super_admin", "staff", "reviewer", "support"];
+      if (!allowedRoles.includes(user.role?.toLowerCase())) {
         throw new Error("Access denied. Admin credentials required.");
       }
 

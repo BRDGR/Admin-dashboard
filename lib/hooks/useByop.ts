@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listByopRelationships, getByopRelationship,
-  getByopAnalytics, deleteByopInvitations,
+  getByopAnalytics, deleteByopInvitations, adminInviteByopPartner,
+  type AdminByopInvitePayload,
 } from "@/lib/api";
-import type { ByopRelationshipsResponse, ByopAnalytics } from "@/lib/types";
+import type { ByopRelationshipsResponse, ByopAnalytics, ByopRelationship } from "@/lib/types";
 import { toast } from "sonner";
 
 export function useByopRelationships(page = 1, limit = 20, search?: string, clientOrgId?: string) {
@@ -23,7 +24,8 @@ export function useByopRelationship(relationshipId: string) {
     queryFn: async () => {
       const res = await getByopRelationship(relationshipId);
       if (!res.ok) throw new Error(res.error ?? "Failed to load relationship");
-      return res.data?.data?.records?.[0];
+      const records = (res.data?.data as { records?: ByopRelationship[] } | null)?.records;
+      return records?.[0] ?? null;
     },
     enabled: Boolean(relationshipId),
   });
@@ -49,5 +51,17 @@ export function useDeleteByopInvitations() {
       qc.invalidateQueries({ queryKey: ["admin", "byop"] });
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useInviteByopPartner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AdminByopInvitePayload) => adminInviteByopPartner(payload),
+    onSuccess: () => {
+      toast.success("Partner invitation sent");
+      qc.invalidateQueries({ queryKey: ["admin", "byop"] });
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Failed to send invitation"),
   });
 }

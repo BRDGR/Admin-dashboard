@@ -11,10 +11,15 @@ import {
   ExternalLink,
   UserCheck,
   UserX,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { AdminClientRecord } from "@/lib/types";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteClient } from "@/lib/api/admin.api";
 import { formatName, getInitials } from "./client-columns";
 import { ClientOrgCard } from "./ClientOrgCard";
 
@@ -25,6 +30,24 @@ interface ClientDetailsDrawerProps {
 
 export function ClientDetailsDrawer({ client, onClose }: ClientDetailsDrawerProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await deleteClient(userId);
+      if (!res.ok) throw new Error(res.error || "Failed to delete client");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Client account removed successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete client");
+    },
+  });
 
   if (!client) return null;
 
@@ -184,6 +207,56 @@ export function ClientDetailsDrawer({ client, onClose }: ClientDetailsDrawerProp
               </div>
             </div>
           )}
+
+          {/* Danger Zone: Delete Client */}
+          <div className="pt-4 border-t border-slate-100">
+            <div className="bg-rose-50/60 border border-rose-200/80 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2 text-rose-800 font-semibold text-xs">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <span>Account Administration</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Permanently revoke platform access and remove this client user record from the database.
+              </p>
+
+              {confirmDelete ? (
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => deleteMutation.mutate(user.id)}
+                    disabled={deleteMutation.isPending}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    {deleteMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" /> Confirm Delete
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={deleteMutation.isPending}
+                    className="h-8 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-xl border border-rose-200 bg-white text-rose-600 text-xs font-semibold hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Client Account
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
