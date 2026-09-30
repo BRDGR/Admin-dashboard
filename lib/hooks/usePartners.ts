@@ -88,7 +88,7 @@ export function usePartner(userId: string) {
       }
 
       console.warn(`[usePartner] Partner not found in listPartners fallback either for ${userId}`);
-      return rawData as PartnersResponse;
+      return (rawData ?? null) as PartnersResponse | null;
     },
     enabled: Boolean(userId),
   });

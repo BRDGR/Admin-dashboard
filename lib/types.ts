@@ -164,6 +164,15 @@ export interface OrganizationsResponse {
 
 export type KycStatus = "pending" | "verified" | "failed" | "rejected" | "approved";
 
+export interface KycDocumentItem {
+  id?: string;
+  documentType?: string;
+  url?: string;
+  fileUrl?: string;
+  fileName?: string;
+  uploadedAt?: string;
+}
+
 // Shape returned by GET /admin/kyc/ (org KYC)
 export interface KycRecord {
   id: string;
@@ -172,6 +181,11 @@ export interface KycRecord {
   provider: string;
   providerReferenceId: string;
   decisionNotes: string | null;
+  documentType?: string;
+  fileUrl?: string;
+  documentUrl?: string;
+  fileName?: string;
+  documents?: KycDocumentItem[];
   submittedAt: string;
   decidedAt: string | null;
   createdAt: string;
@@ -196,7 +210,16 @@ export interface PartnerUser {
 export interface PartnerKycRecord {
   kycRecordId: string;
   status: KycStatus;
+  provider?: string;
+  providerReferenceId?: string;
+  decisionNotes?: string | null;
+  documentType?: string;
+  fileUrl?: string;
+  documentUrl?: string;
+  fileName?: string;
+  documents?: KycDocumentItem[];
   submittedAt: string;
+  decidedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   partnerUser: PartnerUser;
