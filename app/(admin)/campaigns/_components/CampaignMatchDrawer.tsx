@@ -158,12 +158,54 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
               description="Adjust campaign targeting or verify that verified partners exist in the vertical."
             />
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500 mb-2">
-                Ranked candidates based on audience reach, geo fit, and historical conversion rate:
-              </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
+                <p className="text-xs font-semibold text-slate-500">
+                  AI-ranked candidates ({matchData?.matches?.length ?? 0}):
+                </p>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const top3 = (matchData?.matches ?? []).slice(0, 3).map((m: CampaignMatchPartner) => m.userId);
+                      setSelectedPartnerIds(top3);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-blue-50 text-[#0364FF] hover:bg-blue-100 font-semibold transition-colors cursor-pointer"
+                  >
+                    Select Top 3
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const all = (matchData?.matches ?? []).map((m: CampaignMatchPartner) => m.userId);
+                      setSelectedPartnerIds(all);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold transition-colors cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  {selectedPartnerIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPartnerIds([])}
+                      className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-800 font-medium transition-colors cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {(matchData?.matches ?? []).map((m: CampaignMatchPartner) => {
                 const isSelected = selectedPartnerIds.includes(m.userId);
+                const score = m.matchScore || 0;
+                const scoreColor =
+                  score >= 80
+                    ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+                    : score >= 65
+                    ? "text-[#0364FF] bg-blue-50 border-blue-200"
+                    : "text-amber-600 bg-amber-50 border-amber-200";
+
                 return (
                   <div
                     key={m.userId}
@@ -179,31 +221,44 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
                         : "border-slate-200 hover:border-slate-300 bg-white"
                     )}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        className="rounded border-slate-300 text-[#0364FF] focus:ring-0 cursor-pointer"
+                        className="rounded border-slate-300 text-[#0364FF] focus:ring-0 cursor-pointer shrink-0"
                       />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900">{m.partnerName}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-900 truncate">{m.partnerName}</span>
                           {m.isVetted && (
                             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">
                               Vetted
                             </span>
                           )}
+                          <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                            {m.location || "Global"}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {m.location || "Global"} • {m.niches?.join(", ") || "General"}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          {m.niches && m.niches.length > 0 ? (
+                            m.niches.slice(0, 2).map((n) => (
+                              <span key={n} className="text-[10px] font-semibold text-slate-500 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200/60">
+                                {n}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-slate-400">General Performance</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="text-sm font-black text-[#0364FF]">{m.matchScore}%</span>
-                      <p className="text-[10px] text-slate-400">Match score</p>
+                      <div className={cn("text-xs font-black px-2 py-0.5 rounded-lg border inline-block", scoreColor)}>
+                        {score}%
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Match confidence</p>
                     </div>
                   </div>
                 );
