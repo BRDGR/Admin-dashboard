@@ -30,6 +30,7 @@ export default function ClientsAdminPage() {
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [selectedClient, setSelectedClient] = useState<AdminClientRecord | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "clients", page],
@@ -164,44 +165,28 @@ export default function ClientsAdminPage() {
           </div>
         }
       >
-        <div className="mb-4">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by client name, email, company, country..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF]"
-            />
-          </div>
-        </div>
-
-        {filteredClients.length === 0 && !isLoading ? (
-          <EmptyState
-            icon={Users}
-            title="No clients found"
-            description={
-              search.trim()
-                ? "No client accounts match your search criteria."
-                : "No enterprise clients have registered yet."
-            }
-          />
-        ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={filteredClients}
-              isLoading={isLoading}
-              emptyMessage="No clients registered yet."
-            />
-            {pagination && (
-              <div className="mt-4">
-                <Pagination pagination={pagination} onPageChange={setPage} />
-              </div>
-            )}
-          </>
-        )}
+        <DataTable
+          columns={columns}
+          data={filteredClients}
+          isLoading={isLoading}
+          emptyMessage={
+            search.trim()
+              ? "No client accounts match your search criteria."
+              : "No enterprise clients registered yet."
+          }
+          selectable={true}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          getRowId={(c, i) => c.user?.id || c.organization?.id || String(i)}
+          itemLabel="Clients"
+          searchPlaceholder="Search Clients"
+          searchValue={search}
+          onSearchChange={setSearch}
+          showFilterButton={true}
+          onFilterClick={() => {}}
+          pagination={pagination}
+          onPageChange={setPage}
+        />
       </SectionCard>
 
       {/* Client Details Drawer */}

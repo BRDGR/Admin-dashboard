@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { ShieldCheck } from "lucide-react";
-import { DataTable, StatusBadge, Pagination, Button, type Column } from "@/components/ui";
+import { Eye, ShieldCheck } from "lucide-react";
+import {
+  DataTable,
+  StatusBadge,
+  TableActionButton,
+  UserAvatarCell,
+  type Column,
+} from "@/components/ui";
 import { usePartnerKycList, useReviewPartnerKyc } from "@/lib/hooks/useKyc";
 import type { PartnerKycRecord } from "@/lib/types";
 import { PartnerKycDetailDrawer } from "./PartnerKycDetailDrawer";
@@ -11,23 +17,41 @@ import { KycDecisionModal } from "./KycDecisionModal";
 
 export function PartnerKycTab() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = usePartnerKycList(page, 10);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const { data, isLoading } = usePartnerKycList(page, pageSize);
   const { mutate: review, isPending } = useReviewPartnerKyc();
   const [reviewModal, setReviewModal] = useState<{ id: string; name: string } | null>(null);
   const [detailRecord, setDetailRecord] = useState<PartnerKycRecord | null>(null);
+
+  const rawRecords = data?.records ?? [];
+
+  const filteredRecords = useMemo(() => {
+    if (!searchQuery.trim()) return rawRecords;
+    const s = searchQuery.toLowerCase();
+    return rawRecords.filter((r) => {
+      const name = `${r.partnerUser?.firstName ?? ""} ${r.partnerUser?.lastName ?? ""}`.toLowerCase();
+      const email = (r.partnerUser?.email ?? "").toLowerCase();
+      const status = (r.status ?? "").toLowerCase();
+      return name.includes(s) || email.includes(s) || status.includes(s);
+    });
+  }, [rawRecords, searchQuery]);
 
   const columns: Column<PartnerKycRecord>[] = [
     {
       key: "partner",
       header: "Partner",
-      render: (row) => (
-        <div>
-          <p className="text-[13px] font-semibold text-slate-900">
-            {row.partnerUser?.firstName ?? ""} {row.partnerUser?.lastName ?? ""}
-          </p>
-          <p className="text-[11px] text-slate-400">{row.partnerUser?.email ?? "—"}</p>
-        </div>
-      ),
+      render: (row) => {
+        const name = `${row.partnerUser?.firstName ?? ""} ${row.partnerUser?.lastName ?? ""}`.trim() || "Partner";
+        return (
+          <UserAvatarCell
+            name={name}
+            subtitle={row.partnerUser?.email ?? "—"}
+          />
+        );
+      },
     },
     {
       key: "status",
@@ -38,7 +62,7 @@ export function PartnerKycTab() {
       key: "submitted",
       header: "Submitted",
       render: (row) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 whitespace-nowrap">
           {row.submittedAt ? format(new Date(row.submittedAt), "MMM d, yyyy") : "—"}
         </span>
       ),
@@ -46,19 +70,19 @@ export function PartnerKycTab() {
     {
       key: "actions",
       header: "Actions",
+      align: "right",
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex items-center justify-end gap-2">
+          <TableActionButton
+            icon={<Eye className="w-3.5 h-3.5" />}
+            label="View"
             onClick={() => setDetailRecord(row)}
-            className="text-[11px] font-semibold text-[#0364FF] hover:underline cursor-pointer"
-          >
-            View
-          </button>
+          />
           {row.status === "pending" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs font-semibold text-[#0364FF] hover:bg-blue-50"
+            <TableActionButton
+              icon={<ShieldCheck className="w-3.5 h-3.5 text-[#0364FF]" />}
+              label="Review"
+              variant="primary"
               onClick={() => {
                 if (row.kycRecordId) {
                   setReviewModal({
@@ -67,9 +91,7 @@ export function PartnerKycTab() {
                   });
                 }
               }}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 mr-1 text-[#0364FF]" /> Review
-            </Button>
+            />
           )}
         </div>
       ),
@@ -78,9 +100,32 @@ export function PartnerKycTab() {
 
   return (
     <>
-      <DataTable columns={columns} data={data?.records ?? []} isLoading={isLoading} emptyMessage="No partner KYC records." />
-      {data?.pagination && <Pagination pagination={data.pagination} onPageChange={setPage} />}
-      {detailRecord && <PartnerKycDetailDrawer record={detailRecord} onClose={() => setDetailRecord(null)} />}
+      <DataTable
+        columns={columns}
+        data={filteredRecords}
+        isLoading={isLoading}
+        emptyMessage="No partner KYC records found."
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        getRowId={(r) => r.kycRecordId}
+        itemLabel="Submissions"
+        searchPlaceholder="Search KYC Submissions"
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        pagination={data?.pagination}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+      />
+
+      {detailRecord && (
+        <PartnerKycDetailDrawer
+          record={detailRecord}
+          onClose={() => setDetailRecord(null)}
+          onOpenDecision={(id, name) => setReviewModal({ id, name })}
+        />
+      )}
 
       {reviewModal && (
         <KycDecisionModal

@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { Eye, SlidersHorizontal, UserCheck } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
-import { SectionCard, DataTable, StatusBadge, Pagination } from "@/components/ui";
+import {
+  DataTable,
+  StatusBadge,
+  TableActionButton,
+  UserAvatarCell,
+  type Column,
+} from "@/components/ui";
 import { usePartners, useNormalPartners, useByopPartners } from "@/lib/hooks/usePartners";
 import type { PartnerRecord } from "@/lib/types";
-import type { Column } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const TABS = ["All", "Normal", "BYOP"] as const;
 type Tab = typeof TABS[number];
@@ -20,22 +27,16 @@ function useColumns(): Column<PartnerRecord>[] {
       key: "name",
       header: "Partner",
       render: ({ user }) => {
-        const initial = user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || "P";
         const fullName =
           [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
           user?.email ||
           "Unknown Partner";
         const email = user?.email || "—";
         return (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0364FF]/15 to-indigo-100 flex items-center justify-center text-[#0364FF] font-bold text-xs shrink-0">
-              {initial}
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-slate-900">{fullName}</p>
-              <p className="text-[11px] text-slate-400">{email}</p>
-            </div>
-          </div>
+          <UserAvatarCell
+            name={fullName}
+            subtitle={email}
+          />
         );
       },
     },
@@ -43,7 +44,7 @@ function useColumns(): Column<PartnerRecord>[] {
       key: "location",
       header: "Location",
       render: ({ partnerProfile }) => (
-        <span className="text-xs text-slate-600">{partnerProfile?.location || "—"}</span>
+        <span className="text-xs text-slate-600 font-medium">{partnerProfile?.location || "—"}</span>
       ),
     },
     {
@@ -54,7 +55,7 @@ function useColumns(): Column<PartnerRecord>[] {
         return (
           <div className="flex flex-wrap gap-1">
             {industries.slice(0, 2).map((ind) => (
-              <span key={ind} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-medium">
+              <span key={ind} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-semibold border border-slate-200/60">
                 {ind}
               </span>
             ))}
@@ -68,7 +69,7 @@ function useColumns(): Column<PartnerRecord>[] {
       header: "Capacity",
       render: ({ partnerProfile }) => (
         <span className="text-xs text-slate-600 capitalize">
-          {partnerProfile?.capacity ? partnerProfile.capacity.replace("_", " ") : "—"}
+          {partnerProfile?.capacity ? partnerProfile.capacity.replace(/_/g, " ") : "—"}
         </span>
       ),
     },
@@ -91,22 +92,24 @@ function useColumns(): Column<PartnerRecord>[] {
             joined = "—";
           }
         }
-        return <span className="text-xs text-slate-400">{joined}</span>;
+        return <span className="text-xs text-slate-400 whitespace-nowrap">{joined}</span>;
       },
     },
     {
-      key: "action",
-      header: "",
+      key: "actions",
+      header: "Actions",
+      align: "right",
       render: ({ user, partnerProfile }) => {
         const targetId = user?.id || partnerProfile?.userId;
         if (!targetId) return null;
         return (
-          <button
-            onClick={() => router.push(`/partners/${targetId}`)}
-            className="text-[11px] font-semibold text-[#0364FF] hover:underline cursor-pointer"
-          >
-            View →
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <TableActionButton
+              icon={<Eye className="w-3.5 h-3.5" />}
+              label="View"
+              onClick={() => router.push(`/partners/${targetId}`)}
+            />
+          </div>
         );
       },
     },
@@ -115,20 +118,61 @@ function useColumns(): Column<PartnerRecord>[] {
 
 function TabContent({ tab }: { tab: Tab }) {
   const [page, setPage] = useState(1);
-  const allQ = usePartners(page, 20);
-  const normalQ = useNormalPartners(page, 20);
-  const byopQ = useByopPartners(page, 20);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const allQ = usePartners(page, pageSize);
+  const normalQ = useNormalPartners(page, pageSize);
+  const byopQ = useByopPartners(page, pageSize);
   const columns = useColumns();
 
   const q = tab === "All" ? allQ : tab === "Normal" ? normalQ : byopQ;
-  const data = q.data?.partners ?? [];
+  const rawData = q.data?.partners ?? [];
   const pagination = q.data?.pagination;
 
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return rawData;
+    const s = searchQuery.toLowerCase();
+    return rawData.filter((p) => {
+      const name = `${p.user?.firstName ?? ""} ${p.user?.lastName ?? ""}`.toLowerCase();
+      const email = (p.user?.email ?? "").toLowerCase();
+      const location = (p.partnerProfile?.location ?? "").toLowerCase();
+      return name.includes(s) || email.includes(s) || location.includes(s);
+    });
+  }, [rawData, searchQuery]);
+
   return (
-    <>
-      <DataTable columns={columns} data={data} isLoading={q.isLoading} emptyMessage="No partners found." />
-      {pagination && <Pagination pagination={pagination} onPageChange={setPage} />}
-    </>
+    <DataTable
+      columns={columns}
+      data={filteredData}
+      isLoading={q.isLoading}
+      emptyMessage="No partners found matching criteria."
+      selectable={true}
+      selectedIds={selectedIds}
+      onSelectionChange={setSelectedIds}
+      getRowId={(p, idx) => p.user?.id || p.partnerProfile?.id || String(idx)}
+      itemLabel="Partners"
+      searchPlaceholder="Search Partners"
+      searchValue={searchQuery}
+      onSearchChange={setSearchQuery}
+      showFilterButton={true}
+      onFilterClick={() => toast.info("Partner filters")}
+      pagination={pagination}
+      onPageChange={setPage}
+      pageSize={pageSize}
+      onPageSizeChange={setPageSize}
+      bulkActions={
+        <TableActionButton
+          icon={<UserCheck className="w-3.5 h-3.5 text-emerald-600" />}
+          label="Verify Selected"
+          variant="primary"
+          onClick={() => {
+            toast.info(`Vetting ${selectedIds.length} partners requested`);
+          }}
+        />
+      }
+    />
   );
 }
 
@@ -139,28 +183,26 @@ export default function PartnersPage() {
     <div className="space-y-6">
       <AdminTopBar title="Partners" subtitle="Manage all partner profiles on the platform" />
 
-      <SectionCard
-        title="Partner Directory"
-        subtitle="All registered partner accounts"
-        action={
-          <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1">
-            {TABS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer",
-                  tab === t ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        <TabContent tab={tab} />
-      </SectionCard>
+      {/* Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={cn(
+              "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer",
+              tab === t
+                ? "bg-slate-900 text-white shadow-2xs"
+                : "bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50"
+            )}
+          >
+            {t} Partners
+          </button>
+        ))}
+      </div>
+
+      <TabContent tab={tab} />
     </div>
   );
 }

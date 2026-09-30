@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import type { AdminClientRecord } from "@/lib/types";
 import type { Column } from "@/components/ui";
-import { StatusBadge } from "@/components/ui";
+import { StatusBadge, TableActionButton, UserAvatarCell } from "@/components/ui";
+import { Eye } from "lucide-react";
 
 export function formatName(firstName?: string, lastName?: string): string {
   const parts = [firstName, lastName].filter(Boolean).map((p) => p!.trim()).filter(Boolean);
@@ -41,24 +42,12 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
       key: "client",
       header: "Client Account",
       render: (client) => {
-        const initials = getInitials(client.user?.firstName, client.user?.lastName, client.user?.email);
         const name = formatName(client.user?.firstName, client.user?.lastName);
-
         return (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0364FF] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100/50">
-              {initials}
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-slate-900 leading-tight">
-                {name}
-              </p>
-              <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="truncate max-w-[200px]">{client.user?.email}</span>
-              </p>
-            </div>
-          </div>
+          <UserAvatarCell
+            name={name}
+            subtitle={client.user?.email || "—"}
+          />
         );
       },
     },
@@ -174,22 +163,22 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
     {
       key: "actions",
       header: "Actions",
+      align: "right",
       render: (client) => (
-        <div className="flex items-center gap-3">
-          <button
+        <div className="flex items-center justify-end gap-2">
+          <TableActionButton
+            icon={<Eye className="w-3.5 h-3.5" />}
+            label="Details"
             onClick={() => onSelectClient(client)}
-            className="flex items-center gap-1 text-xs font-semibold text-[#0364FF] hover:text-[#0256DC] hover:underline cursor-pointer"
-          >
-            View Details
-            <ArrowRight className="w-3 h-3" />
-          </button>
+          />
           {client.organization?.id && (
             <Link
               href={`/organizations/${client.organization.id}`}
-              className="text-[11px] font-medium text-slate-400 hover:text-slate-800 transition-colors flex items-center gap-0.5"
+              className="h-7 px-2 rounded-lg border border-slate-200/90 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold flex items-center gap-1 transition-all"
               title="Open Organization Page"
             >
-              <Building2 className="w-3.5 h-3.5" />
+              <Building2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>Org</span>
             </Link>
           )}
         </div>
