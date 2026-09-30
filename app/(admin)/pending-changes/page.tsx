@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ShieldAlert,
@@ -18,9 +19,12 @@ import {
   UserAvatarCell,
   TableActionButton,
   StatusBadge,
+  TruncatedText,
+  JsonPreviewCell,
 } from "@/components/ui";
 import { listPendingChanges } from "@/lib/api/admin.api";
-import type { PendingChangeItem } from "@/lib/types";
+import { logger } from "@/lib/logger";
+import type { PendingChangeItem, Pagination } from "@/lib/types";
 import type { Column } from "@/components/ui";
 import { ReviewPendingChangeModal } from "./_components/ReviewPendingChangeModal";
 import { cn } from "@/lib/utils";
@@ -42,123 +46,219 @@ export default function PendingChangesPage() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin", "pending-changes", page, statusFilter],
     queryFn: async () => {
+      logger.debug("[MakerChecker:API] Calling listPendingChanges with params:", {
+        page,
+        limit: 15,
+        statusFilter,
+      });
+
       const res = await listPendingChanges({
         page,
         limit: 15,
         status: statusFilter === "all" ? undefined : statusFilter,
       });
-      return res.data?.data ?? null;
+
+      logger.debug("[MakerChecker:API] Raw response from /admin/pending-changes:", res);
+
+      if (!res.ok) {
+        logger.error("[MakerChecker:API] Fetch failed with status", res.status, ":", {
+          error: res.error,
+          data: res.data,
+        });
+        return { pendingChanges: [], pagination: undefined };
+      }
+
+      // Handle envelope variations matching Apidog:
+      // 1. Standard Apidog: { error: false, message: "...", data: { pendingChanges: [...], pagination: {...} } }
+      // 2. Direct object: { pendingChanges: [...], pagination: {...} }
+      // 3. Array wrapped in data: { data: [...] }
+      const body = res.data;
+      const innerData = (body as any)?.data ?? body;
+
+      let pendingChanges: PendingChangeItem[] = [];
+      if (Array.isArray(innerData)) {
+        pendingChanges = innerData;
+      } else if (innerData && Array.isArray(innerData.pendingChanges)) {
+        pendingChanges = innerData.pendingChanges;
+      } else if (innerData && Array.isArray(innerData.records)) {
+        pendingChanges = innerData.records;
+      } else if (body && Array.isArray((body as any).pendingChanges)) {
+        pendingChanges = (body as any).pendingChanges;
+      }
+
+      const pagination: Pagination | undefined =
+        innerData?.pagination ?? (body as any)?.pagination;
+
+      logger.debug("[MakerChecker:Data] Successfully extracted items:", {
+        count: pendingChanges.length,
+        pagination,
+        pendingChanges,
+      });
+
+      return { pendingChanges, pagination };
     },
   });
 
-  const changes: PendingChangeItem[] = data?.pendingChanges ?? [];
+  const changes: PendingChangeItem[] = useMemo(() => {
+    return data?.pendingChanges ?? [];
+  }, [data]);
+
   const pagination = data?.pagination;
 
-  // Filter by search term
-  const filteredChanges = changes.filter((c) => {
-    if (!search) return true;
-    const query = search.toLowerCase();
-    const route = c.routeKey?.toLowerCase() || "";
-    const method = c.method?.toLowerCase() || "";
-    const requester = c.requester
-      ? `${c.requester.firstName} ${c.requester.lastName} ${c.requester.email}`.toLowerCase()
-      : "";
-    return route.includes(query) || method.includes(query) || requester.includes(query);
-  });
+  // Filter by status tab (client fallback if server returns all records) and search term
+  const filteredChanges = useMemo(() => {
+    const list = changes.filter((c) => {
+      // 1. Status Filter fallback
+      if (statusFilter !== "all") {
+        const itemStatus = (c.status || "").toLowerCase();
+        if (itemStatus !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 2. Search query filter
+      if (!search.trim()) return true;
+      const query = search.toLowerCase();
+      const route = c.routeKey?.toLowerCase() || "";
+      const method = c.method?.toLowerCase() || "";
+      const id = c.id?.toLowerCase() || "";
+      const requester = c.requester
+        ? `${c.requester.firstName} ${c.requester.lastName} ${c.requester.email}`.toLowerCase()
+        : "";
+      return (
+        route.includes(query) ||
+        method.includes(query) ||
+        id.includes(query) ||
+        requester.includes(query)
+      );
+    });
+
+    logger.debug("[MakerChecker:Render] Filtered items calculated:", {
+      totalFetched: changes.length,
+      statusFilter,
+      searchQuery: search,
+      matchedCount: list.length,
+    });
+
+    return list;
+  }, [changes, statusFilter, search]);
 
   // Calculate metrics
   const totalCount = pagination?.totalRecords ?? changes.length;
-  const pendingCount = changes.filter((c) => c.status === "pending").length;
-  const approvedCount = changes.filter((c) => c.status === "approved").length;
-  const rejectedCount = changes.filter((c) => c.status === "rejected").length;
+  const pendingCount = changes.filter((c) => (c.status || "").toLowerCase() === "pending").length;
+  const approvedCount = changes.filter((c) => (c.status || "").toLowerCase() === "approved").length;
+  const rejectedCount = changes.filter((c) => (c.status || "").toLowerCase() === "rejected").length;
 
-  const columns: Column<PendingChangeItem>[] = [
-    {
-      key: "operation",
-      header: "Operation / Route",
-      sortable: true,
-      render: (change) => {
-        const method = change.method || "MUTATION";
-        const badgeColor = METHOD_COLORS[method] || "bg-slate-100 text-slate-700 border-slate-200";
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${badgeColor}`}>
-                {method}
-              </span>
-              <span className="text-xs font-semibold text-slate-800 font-mono">
-                {change.routeKey || change.id}
-              </span>
+  useEffect(() => {
+    logger.debug("[MakerChecker:PageStatus] State summary:", {
+      page,
+      statusFilter,
+      totalCount,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      isLoading,
+    });
+  }, [page, statusFilter, totalCount, pendingCount, approvedCount, rejectedCount, isLoading]);
+
+  const columns: Column<PendingChangeItem>[] = useMemo(
+    () => [
+      {
+        key: "operation",
+        header: "Operation / Route",
+        sortable: true,
+        render: (change) => {
+          const method = change.method || "MUTATION";
+          const badgeColor = METHOD_COLORS[method] || "bg-slate-100 text-slate-700 border-slate-200";
+          return (
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase leading-none ${badgeColor}`}>
+                  {method}
+                </span>
+                <TruncatedText
+                  text={change.routeKey || change.id}
+                  maxWidth="max-w-[340px]"
+                  mono
+                  label="API Route"
+                />
+              </div>
+              {change.urlParams && Object.keys(change.urlParams).length > 0 && (
+                <JsonPreviewCell
+                  data={change.urlParams}
+                  label="URL Parameters"
+                  maxWidth="max-w-[320px]"
+                />
+              )}
             </div>
-            {change.urlParams && Object.keys(change.urlParams).length > 0 && (
-              <p className="text-[11px] text-slate-400 font-mono truncate max-w-[280px]">
-                Params: {JSON.stringify(change.urlParams)}
-              </p>
-            )}
-          </div>
-        );
+          );
+        },
       },
-    },
-    {
-      key: "requester",
-      header: "Requester",
-      sortable: true,
-      render: (change) => (
-        change.requester ? (
-          <UserAvatarCell
-            name={`${change.requester.firstName} ${change.requester.lastName}`}
-            subtitle={change.requester.email}
-          />
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center shrink-0">
-              SA
+      {
+        key: "requester",
+        header: "Requester",
+        sortable: true,
+        render: (change) =>
+          change.requester ? (
+            <UserAvatarCell
+              name={`${change.requester.firstName} ${change.requester.lastName}`}
+              subtitle={change.requester.email}
+              size="md"
+            />
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center shrink-0">
+                SA
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800 leading-tight">System Admin</p>
+                <p className="text-xs text-slate-400 leading-tight mt-0.5">Automated</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-slate-800">System Admin</p>
-              <p className="text-[11px] text-slate-400">Automated Mutation</p>
-            </div>
+          ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        render: (change) => <StatusBadge status={change.status} size="md" />,
+      },
+      {
+        key: "createdAt",
+        header: "Submitted",
+        sortable: true,
+        render: (change) => (
+          <div className="text-sm text-slate-600 space-y-0.5">
+            <p className="font-medium text-slate-800">{format(new Date(change.createdAt), "MMM d, yyyy")}</p>
+            <p className="text-xs text-slate-400 font-mono">{format(new Date(change.createdAt), "HH:mm:ss")}</p>
           </div>
-        )
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (change) => <StatusBadge status={change.status} />,
-    },
-    {
-      key: "createdAt",
-      header: "Submitted",
-      sortable: true,
-      render: (change) => (
-        <div className="text-xs text-slate-500 space-y-0.5">
-          <p className="font-medium text-slate-700">{format(new Date(change.createdAt), "MMM d, yyyy")}</p>
-          <p className="text-[10px] text-slate-400 font-mono">{format(new Date(change.createdAt), "HH:mm:ss")}</p>
-        </div>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      render: (change) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <TableActionButton
-            icon={
-              change.status === "pending" ? (
-                <ShieldAlert className="w-3.5 h-3.5" />
-              ) : (
-                <Eye className="w-3.5 h-3.5" />
-              )
-            }
-            label={change.status === "pending" ? "Review" : "View"}
-            onClick={() => setSelectedChange(change)}
-            variant={change.status === "pending" ? "primary" : "outline"}
-          />
-        </div>
-      ),
-    },
-  ];
+        ),
+      },
+      {
+        key: "actions",
+        header: "",
+        align: "right",
+        render: (change) => (
+          <div className="flex items-center justify-end gap-2">
+            <TableActionButton
+              icon={
+                change.status === "pending" ? (
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )
+              }
+              label={change.status === "pending" ? "Review" : "View"}
+              onClick={() => {
+                console.log("[MakerChecker] Selected change for review/view:", change);
+                setSelectedChange(change);
+              }}
+              variant={change.status === "pending" ? "primary" : "outline"}
+              size="md"
+            />
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -202,6 +302,7 @@ export default function PendingChangesPage() {
             <button
               key={st}
               onClick={() => {
+                console.log("[MakerChecker:Filter] Tab switched to:", st);
                 setStatusFilter(st);
                 setPage(1);
               }}
@@ -223,7 +324,17 @@ export default function PendingChangesPage() {
         columns={columns}
         data={filteredChanges}
         isLoading={isLoading}
-        emptyMessage="No pending changes waiting for review."
+        emptyMessage={
+          search
+            ? `No changes found matching "${search}".`
+            : statusFilter === "pending"
+            ? "No pending changes waiting for review."
+            : statusFilter === "approved"
+            ? "No approved changes on record."
+            : statusFilter === "rejected"
+            ? "No rejected changes on record."
+            : "No change records found."
+        }
         searchPlaceholder="Search by route, method, or requester..."
         searchValue={search}
         onSearchChange={setSearch}
@@ -239,7 +350,10 @@ export default function PendingChangesPage() {
       <ReviewPendingChangeModal
         change={selectedChange}
         onClose={() => setSelectedChange(null)}
-        onSuccess={() => refetch()}
+        onSuccess={() => {
+          console.log("[MakerChecker] Review completed, invalidating & refetching queue...");
+          refetch();
+        }}
       />
     </div>
   );

@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { listPartners, listNormalPartners, listByopPartners, getPartner } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { listPartners, listNormalPartners, listByopPartners, getPartner, deletePartner } from "@/lib/api";
+import { toast } from "sonner";
 import type { PartnersResponse } from "@/lib/types";
 
 export function usePartners(page = 1, limit = 20) {
@@ -91,5 +92,24 @@ export function usePartner(userId: string) {
       return (rawData ?? null) as PartnersResponse | null;
     },
     enabled: Boolean(userId),
+  });
+}
+
+export function useDeletePartner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (partnerUserId: string) => {
+      const res = await deletePartner(partnerUserId);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to delete partner");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Partner removed successfully");
+      qc.invalidateQueries({ queryKey: ["admin", "partners"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

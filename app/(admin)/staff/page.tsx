@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { UserPlus, X, Clock, Edit3 } from "lucide-react";
+import { UserPlus, X, Clock, Edit3, Eye } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import {
   DataTable,
@@ -153,12 +153,73 @@ function SeedHistoryTab() {
   );
 }
 
+function StaffDetailModal({ staff, onClose }: { staff: StaffMember; onClose: () => void }) {
+  const fullName = `${staff.firstName ?? ""} ${staff.lastName ?? ""}`.trim() || "Staff Member";
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <p className="text-sm font-bold text-slate-900">Staff Dossier</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Administrative credentials & role scope</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 cursor-pointer transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+            <UserAvatarCell name={fullName} subtitle={staff.email} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+              <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Role</span>
+              <span className={cn("inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-[11px] font-semibold border capitalize", ROLE_BADGE[staff.role] ?? "bg-slate-50 text-slate-600 border-slate-200")}>
+                {staff.role.replace(/_/g, " ")}
+              </span>
+            </div>
+            <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+              <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Account Status</span>
+              <div className="mt-1">
+                <StatusBadge status={staff.isActive ? "active" : "offline"} />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between py-2 border-b border-slate-100">
+              <span className="text-slate-500 font-medium">User ID</span>
+              <span className="font-mono text-slate-700">{staff.id ? staff.id.slice(0, 16) + "..." : "—"}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-100">
+              <span className="text-slate-500 font-medium">Created On</span>
+              <span className="text-slate-700">{staff.createdAt ? format(new Date(staff.createdAt), "MMM d, yyyy · h:mm a") : "—"}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-slate-100">
+              <span className="text-slate-500 font-medium">Last Login</span>
+              <span className="text-slate-700">{staff.lastLoginAt ? format(new Date(staff.lastLoginAt), "MMM d, yyyy · h:mm a") : "Never"}</span>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button variant="outline" className="w-full" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StaffPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [tab, setTab] = useState<StaffTab>("Staff Members");
   const { data, isLoading } = useStaff(page, pageSize);
 
@@ -228,9 +289,10 @@ export default function StaffPage() {
       render: (s) => (
         <div className="flex items-center justify-end gap-2">
           <TableActionButton
-            icon={<Edit3 className="w-3.5 h-3.5" />}
-            label="Edit"
-            onClick={() => toast.info(`Edit staff member: ${s.email}`)}
+            icon={<Eye className="w-3.5 h-3.5" />}
+            label="Details"
+            variant="outline"
+            onClick={() => setSelectedStaff(s)}
           />
         </div>
       ),
@@ -290,6 +352,7 @@ export default function StaffPage() {
       )}
 
       {showModal && <InviteModal onClose={() => setShowModal(false)} />}
+      {selectedStaff && <StaffDetailModal staff={selectedStaff} onClose={() => setSelectedStaff(null)} />}
     </div>
   );
 }

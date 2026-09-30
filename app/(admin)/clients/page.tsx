@@ -4,18 +4,14 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
-  Search,
   CheckCircle2,
   Building2,
   ShieldCheck,
 } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import {
-  SectionCard,
   DataTable,
   MetricCard,
-  Pagination,
-  EmptyState,
 } from "@/components/ui";
 import { listClients } from "@/lib/api/admin.api";
 import type { AdminClientRecord } from "@/lib/types";
@@ -27,15 +23,16 @@ type FilterTab = "all" | "active" | "inactive" | "with_company" | "without_compa
 
 export default function ClientsAdminPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [selectedClient, setSelectedClient] = useState<AdminClientRecord | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "clients", page],
+    queryKey: ["admin", "clients", page, pageSize],
     queryFn: async () => {
-      const res = await listClients(page, 15);
+      const res = await listClients(page, pageSize);
       return res.data?.data;
     },
   });
@@ -132,62 +129,59 @@ export default function ClientsAdminPage() {
         />
       </div>
 
-      {/* Main Table Card */}
-      <SectionCard
-        title="Registered Clients"
-        subtitle={`${filteredClients.length} client accounts found`}
-        action={
-          <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1 overflow-x-auto max-w-full">
-            {filterTabs.map(([tabKey, tabLabel, count]) => (
-              <button
-                key={tabKey}
-                onClick={() => setFilterTab(tabKey)}
+      {/* Filter Tabs Sub-Bar */}
+      <div className="flex items-center justify-between gap-3 overflow-x-auto">
+        <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/60 overflow-x-auto">
+          {filterTabs.map(([tabKey, tabLabel, count]) => (
+            <button
+              key={tabKey}
+              onClick={() => setFilterTab(tabKey)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                filterTab === tabKey
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              <span>{tabLabel}</span>
+              <span
                 className={cn(
-                  "px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                  "text-[10px] px-1.5 py-0.2 rounded-full",
                   filterTab === tabKey
-                    ? "bg-white text-slate-900 shadow-xs font-semibold"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-slate-100 text-slate-700 font-bold"
+                    : "bg-slate-200/60 text-slate-500"
                 )}
               >
-                <span>{tabLabel}</span>
-                <span
-                  className={cn(
-                    "text-[10px] px-1.5 py-0.2 rounded-full",
-                    filterTab === tabKey
-                      ? "bg-slate-100 text-slate-700"
-                      : "bg-slate-200/60 text-slate-500"
-                  )}
-                >
-                  {count}
-                </span>
-              </button>
-            ))}
-          </div>
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Table */}
+      <DataTable
+        columns={columns}
+        data={filteredClients}
+        isLoading={isLoading}
+        emptyMessage={
+          search.trim()
+            ? "No client accounts match your search criteria."
+            : "No enterprise clients registered yet."
         }
-      >
-        <DataTable
-          columns={columns}
-          data={filteredClients}
-          isLoading={isLoading}
-          emptyMessage={
-            search.trim()
-              ? "No client accounts match your search criteria."
-              : "No enterprise clients registered yet."
-          }
-          selectable={true}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          getRowId={(c, i) => c.user?.id || c.organization?.id || String(i)}
-          itemLabel="Clients"
-          searchPlaceholder="Search Clients"
-          searchValue={search}
-          onSearchChange={setSearch}
-          showFilterButton={true}
-          onFilterClick={() => {}}
-          pagination={pagination}
-          onPageChange={setPage}
-        />
-      </SectionCard>
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        getRowId={(c, i) => c.user?.id || c.organization?.id || String(i)}
+        itemLabel="Clients"
+        searchPlaceholder="Search clients by name, email, company, jurisdiction..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        pagination={pagination}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+      />
 
       {/* Client Details Drawer */}
       <ClientDetailsDrawer

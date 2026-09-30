@@ -1,20 +1,27 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Trash2, Edit3, Plus, SlidersHorizontal, UserPlus } from "lucide-react";
+import { Eye, Copy, ExternalLink, Plus, SlidersHorizontal, UserPlus, Trash2, AlertTriangle } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import {
   DataTable,
   StatusBadge,
   TableActionButton,
   UserAvatarCell,
+  Button,
   type Column,
 } from "@/components/ui";
-import { useUsers } from "@/lib/hooks/useUsers";
+import { useUsers, useDeleteClient } from "@/lib/hooks/useUsers";
+import { useDeletePartner } from "@/lib/hooks/usePartners";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AdminUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AddUserModal } from "./_components/AddUserModal";
+import { DeleteUserModal } from "./_components/DeleteUserModal";
+import { UserDetailModal } from "./_components/UserDetailModal";
 
 const ROLE_FILTERS = ["all", "partner", "client", "admin", "ops_admin"] as const;
 type RoleFilter = typeof ROLE_FILTERS[number];
@@ -27,13 +34,24 @@ const ROLE_BADGE: Record<string, string> = {
 };
 
 export default function UsersPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // Modals state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const { data, isLoading } = useUsers(page, pageSize);
+  const { mutateAsync: deletePartnerMutate } = useDeletePartner();
+  const { mutateAsync: deleteClientMutate } = useDeleteClient();
 
   const filtered = useMemo(() => {
     let list = data?.users ?? [];
@@ -52,6 +70,39 @@ export default function UsersPage() {
     }
     return list;
   }, [data, roleFilter, searchQuery]);
+
+  async function handleBulkDelete() {
+    try {
+      setIsBulkDeleting(true);
+      const allUsers = data?.users ?? [];
+      const targetUsersToDelete = allUsers.filter(
+        (u) => selectedIds.includes(u.id) && (u.role === "partner" || u.role === "client")
+      );
+
+      if (targetUsersToDelete.length === 0) {
+        toast.info("Only partner and client accounts can be directly deleted. Administrative accounts must be managed from the Staff console.");
+        setBulkDeleteConfirm(false);
+        return;
+      }
+
+      for (const targetUser of targetUsersToDelete) {
+        if (targetUser.role === "partner") {
+          await deletePartnerMutate(targetUser.id);
+        } else if (targetUser.role === "client") {
+          await deleteClientMutate(targetUser.id);
+        }
+      }
+
+      toast.success(`Successfully removed ${targetUsersToDelete.length} account(s).`);
+      setSelectedIds([]);
+      setBulkDeleteConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete selected users.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
 
   const columns: Column<AdminUser>[] = [
     {
@@ -108,22 +159,21 @@ export default function UsersPage() {
       header: "Actions",
       align: "right",
       render: (user) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5">
           <TableActionButton
-            icon={<Trash2 className="w-3.5 h-3.5" />}
-            label="Delete"
-            variant="danger"
-            onClick={() => {
-              toast.info(`Delete action clicked for ${user.email}`);
-            }}
+            icon={<Eye className="w-3.5 h-3.5" />}
+            label="Details"
+            variant="outline"
+            onClick={() => setSelectedUser(user)}
           />
-          <TableActionButton
-            icon={<Edit3 className="w-3.5 h-3.5" />}
-            label="Edit"
-            onClick={() => {
-              toast.info(`Edit action clicked for ${user.email}`);
-            }}
-          />
+          {(user.role === "partner" || user.role === "client") ? (
+            <TableActionButton
+              icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+              label="Delete"
+              variant="danger"
+              onClick={() => setUserToDelete(user)}
+            />
+          ) : null}
         </div>
       ),
     },
@@ -155,7 +205,7 @@ export default function UsersPage() {
         ))}
       </div>
 
-      {/* Modern High-Fidelity Table matching screenshot */}
+      {/* Modern High-Fidelity Table */}
       <DataTable
         columns={columns}
         data={filtered}
@@ -168,16 +218,10 @@ export default function UsersPage() {
         searchPlaceholder="Search Members"
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        showFilterButton={true}
-        onFilterClick={() => {
-          toast.info("Filter options drawer");
-        }}
         primaryAction={{
-          label: "Add Members",
+          label: "Add Member",
           icon: <UserPlus className="w-3.5 h-3.5" />,
-          onClick: () => {
-            toast.info("Add Member modal");
-          },
+          onClick: () => setShowAddModal(true),
         }}
         pagination={data?.pagination}
         onPageChange={setPage}
@@ -186,14 +230,69 @@ export default function UsersPage() {
         bulkActions={
           <TableActionButton
             icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-            label="Delete Selected"
+            label={`Delete Selected (${selectedIds.length})`}
             variant="danger"
-            onClick={() => {
-              toast.warning(`Delete ${selectedIds.length} users requested`);
-            }}
+            onClick={() => setBulkDeleteConfirm(true)}
           />
         }
       />
+
+      {/* Modals & Dialogs */}
+      {showAddModal && (
+        <AddUserModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
+      )}
+
+      {selectedUser && (
+        <UserDetailModal
+          user={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onDeleteRequest={(u) => setUserToDelete(u)}
+        />
+      )}
+
+      {userToDelete && (
+        <DeleteUserModal
+          user={userToDelete}
+          onClose={() => setUserToDelete(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+          }}
+        />
+      )}
+
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-100 p-6 space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">Delete {selectedIds.length} Accounts?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                This will execute account deletion across the selected records. Any partner accounts in this selection will be permanently removed.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkDeleteConfirm(false)}
+                disabled={isBulkDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                isLoading={isBulkDeleting}
+                onClick={handleBulkDelete}
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

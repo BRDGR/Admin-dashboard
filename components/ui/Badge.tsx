@@ -98,16 +98,28 @@ export interface BadgeProps {
   status: string;
   className?: string;
   showDot?: boolean;
+  size?: "sm" | "md";
 }
 
-export function StatusBadge({ status, className, showDot = true }: BadgeProps) {
+export function StatusBadge({ status, className, showDot = true, size = "md" }: BadgeProps) {
   const normalizedKey = status?.toLowerCase() ?? "";
   const config = STATUS_CONFIG_MAP[normalizedKey] ?? DEFAULT_CONFIG;
+
+  const sizeClasses =
+    size === "sm"
+      ? "px-2 py-0.5 text-[10px] font-semibold"
+      : "px-2.5 py-0.5 text-xs font-medium";
+
+  const dotClasses =
+    size === "sm"
+      ? "w-1.5 h-1.5 rounded-full mr-1 shrink-0"
+      : "w-1.5 h-1.5 rounded-full mr-1.5 shrink-0";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize whitespace-nowrap",
+        "inline-flex items-center rounded-full border capitalize whitespace-nowrap",
+        sizeClasses,
         config.badge,
         className
       )}
@@ -115,7 +127,7 @@ export function StatusBadge({ status, className, showDot = true }: BadgeProps) {
       {showDot && (
         <span
           className={cn(
-            "w-1.5 h-1.5 rounded-full mr-1.5 shrink-0",
+            dotClasses,
             config.dot
           )}
         />

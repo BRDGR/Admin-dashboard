@@ -4,7 +4,9 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { X, Loader2, Building2, Tag, DollarSign, Calendar } from "lucide-react";
 import { Button, StatusBadge, EmptyState } from "@/components/ui";
+import { CopyablePill } from "@/components/ui/TruncatedCell";
 import { getCampaignAssignments } from "@/lib/api/admin.api";
+import { logger } from "@/lib/logger";
 import type { AdminCampaignQueueItem, CampaignAssignment } from "@/lib/types";
 
 interface CampaignAssignmentsModalProps {
@@ -13,11 +15,7 @@ interface CampaignAssignmentsModalProps {
 }
 
 export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignmentsModalProps) {
-  console.log(
-    `%c[CampaignAssignmentsModal] Opened assignments for campaign: ${campaign.id}`,
-    "color: #10b981; font-weight: bold;",
-    campaign
-  );
+  logger.debug(`[CampaignAssignmentsModal] Opened assignments for campaign: ${campaign.id}`, campaign);
 
   const orgName = campaign.organization?.name ?? campaign.organizationName ?? "Client Org";
   const currency = campaign.budgetCurrency ?? campaign.currency ?? "USD";
@@ -35,10 +33,10 @@ export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignme
   const { data: assignmentsData, isLoading } = useQuery({
     queryKey: ["admin", "campaigns", "assignments", campaign.id],
     queryFn: async () => {
-      console.log("[CampaignAssignmentsModal] Fetching assignments for campaign:", campaign.id);
+      logger.debug("[CampaignAssignmentsModal] Fetching assignments for campaign:", campaign.id);
       const res = await getCampaignAssignments(campaign.id, { limit: 20 });
       if (res.error) throw new Error(res.error);
-      console.log("[CampaignAssignmentsModal] Assignments data:", res.data?.data);
+      logger.debug("[CampaignAssignmentsModal] Assignments data:", res.data?.data);
       return res.data?.data;
     },
   });
@@ -96,9 +94,9 @@ export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignme
                     <p className="text-xs font-bold text-slate-900">{asgn.partnerName ?? "Partner"}</p>
                     <p className="text-[11px] text-slate-400">{asgn.partnerEmail}</p>
                     {asgn.trackingLink && (
-                      <span className="text-[10px] font-mono text-[#0364FF] block mt-0.5 truncate max-w-xs">
-                        {asgn.trackingLink}
-                      </span>
+                      <div className="mt-1">
+                        <CopyablePill text={asgn.trackingLink} label="Tracking link" />
+                      </div>
                     )}
                   </div>
                   <div className="text-right">

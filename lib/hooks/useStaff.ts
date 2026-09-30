@@ -29,10 +29,20 @@ export function useStaffMember(staffId: string) {
 export function useCreateStaff() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateStaffPayload) => createStaff(payload),
+    mutationFn: async (payload: CreateStaffPayload) => {
+      const res = await createStaff(payload);
+      if (!res.ok || res.error) {
+        const msg = res.status === 409
+          ? "A staff account with this email already exists."
+          : (res.error ?? "Failed to create staff member");
+        throw new Error(msg);
+      }
+      return res.data;
+    },
     onSuccess: () => {
-      toast.success("Staff member created");
+      toast.success("Staff member created successfully");
       qc.invalidateQueries({ queryKey: ["admin", "staff"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });

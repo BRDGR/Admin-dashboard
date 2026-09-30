@@ -45,7 +45,13 @@ export function useByopAnalytics() {
 export function useDeleteByopInvitations() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deleteByopInvitations,
+    mutationFn: async () => {
+      const res = await deleteByopInvitations();
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to cleanup invitations");
+      }
+      return res.data;
+    },
     onSuccess: () => {
       toast.success("Invitations cleaned up");
       qc.invalidateQueries({ queryKey: ["admin", "byop"] });
@@ -57,7 +63,13 @@ export function useDeleteByopInvitations() {
 export function useInviteByopPartner() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: AdminByopInvitePayload) => adminInviteByopPartner(payload),
+    mutationFn: async (payload: AdminByopInvitePayload) => {
+      const res = await adminInviteByopPartner(payload);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to send invitation");
+      }
+      return res.data;
+    },
     onSuccess: () => {
       toast.success("Partner invitation sent");
       qc.invalidateQueries({ queryKey: ["admin", "byop"] });

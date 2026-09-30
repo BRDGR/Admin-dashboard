@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, CheckCircle, XCircle, ShieldAlert, Loader2, User, Clock, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { reviewPendingChange } from "@/lib/api/admin.api";
+import { logger } from "@/lib/logger";
 import type { PendingChangeItem } from "@/lib/types";
 import { toast } from "sonner";
 import { PendingChangePayloadViewer } from "./PendingChangePayloadViewer";
@@ -38,13 +39,30 @@ export function ReviewPendingChangeModal({
 
     try {
       setIsSubmitting(true);
+      logger.debug("[ReviewPendingChangeModal] Submitting review decision:", {
+        changeId: change.id,
+        routeKey: change.routeKey,
+        decision,
+        reviewNote: reviewNote.trim() || undefined,
+      });
+
       const res = await reviewPendingChange(change.id, {
         decision,
         reviewNote: reviewNote.trim() || undefined,
       });
 
-      if (res.data?.error) {
-        toast.error(res.data.message || `Failed to ${decision} change request`);
+      logger.debug("[ReviewPendingChangeModal] API Review result:", res);
+
+      if (!res.ok || res.data?.error) {
+        const errorMsg =
+          res.error ||
+          res.data?.message ||
+          `Failed to ${decision} change request (Status: ${res.status})`;
+        logger.error("[ReviewPendingChangeModal] Failed review operation:", {
+          errorMsg,
+          res,
+        });
+        toast.error(errorMsg);
         return;
       }
 
@@ -53,7 +71,8 @@ export function ReviewPendingChangeModal({
       );
       onSuccess();
       onClose();
-    } catch {
+    } catch (err) {
+      logger.error("[ReviewPendingChangeModal] Exception during review submission:", err);
       toast.error("Failed to process review decision");
     } finally {
       setIsSubmitting(false);

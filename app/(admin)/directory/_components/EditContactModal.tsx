@@ -55,8 +55,8 @@ export function EditContactModal({ contact, onClose, onSuccess }: EditContactMod
         },
       });
 
-      if (res.data?.error) {
-        toast.error(res.data.message || "Failed to update directory contact");
+      if (!res.ok || res.error || (res.data as any)?.error) {
+        toast.error(res.error || (res.data as any)?.message || "Failed to update directory contact");
         return;
       }
 

@@ -61,6 +61,9 @@ export interface DataTableProps<T> {
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
   itemLabel?: string;
+
+  // Density Mode (Normal vs Compact)
+  density?: "normal" | "compact";
 }
 
 function SkeletonRow({ cols, hasCheckbox }: { cols: number; hasCheckbox: boolean }) {
@@ -90,6 +93,7 @@ export function DataTable<T>({
   emptyMessage = "No data found.",
   skeletonRows = 6,
   className,
+  density = "normal",
 
   // Selection
   selectable = false,
@@ -167,6 +171,12 @@ export function DataTable<T>({
     (selectable && selectedIds.length > 0)
   );
 
+  const isCompact = density === "compact";
+  const thPadding = isCompact ? "px-4 py-3 text-xs" : "px-6 py-4 text-xs";
+  const tdPadding = isCompact ? "px-4 py-3 text-xs" : "px-6 py-4 text-sm";
+  const checkboxPadding = isCompact ? "w-10 px-3 py-3" : "w-12 px-6 py-4";
+  const toolbarPadding = isCompact ? "px-5 py-3" : "px-6 py-4.5";
+
   return (
     <div
       className={cn(
@@ -176,7 +186,7 @@ export function DataTable<T>({
     >
       {/* ── Top Toolbar (Matching Reference Design) ── */}
       {hasToolbar && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-slate-100 bg-white">
+        <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 bg-white", toolbarPadding)}>
           {/* Left Slot: Selection Indicator / Custom left */}
           <div className="flex items-center gap-3 min-h-[36px]">
             {selectable && selectedIds.length > 0 ? (
@@ -265,7 +275,7 @@ export function DataTable<T>({
           <thead>
             <tr className="border-b border-slate-100 bg-white">
               {selectable && (
-                <th className="w-10 px-5 py-3.5">
+                <th className={cn(checkboxPadding)}>
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -282,7 +292,8 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   className={cn(
-                    "px-5 py-3.5 text-[11px] font-semibold text-slate-500 tracking-normal whitespace-nowrap",
+                    thPadding,
+                    "text-[11px] font-semibold text-slate-500 tracking-normal whitespace-nowrap",
                     col.align === "center" && "text-center",
                     col.align === "right" && "text-right",
                     col.sortable && "cursor-pointer hover:text-slate-800 select-none",
@@ -344,7 +355,7 @@ export function DataTable<T>({
                     )}
                   >
                     {selectable && (
-                      <td className="w-10 px-5 py-3.5">
+                      <td className={cn(checkboxPadding)}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -358,7 +369,8 @@ export function DataTable<T>({
                       <td
                         key={col.key}
                         className={cn(
-                          "px-5 py-3.5 text-xs text-slate-700 align-middle",
+                          tdPadding,
+                          "text-slate-700 align-middle",
                           col.align === "center" && "text-center",
                           col.align === "right" && "text-right",
                           col.width
@@ -395,6 +407,7 @@ export function TableActionButton({
   label,
   onClick,
   variant = "outline",
+  size = "md",
   disabled = false,
   className,
 }: {
@@ -402,6 +415,7 @@ export function TableActionButton({
   label: string;
   onClick?: (e: React.MouseEvent) => void;
   variant?: "outline" | "danger" | "primary" | "subtle";
+  size?: "sm" | "md";
   disabled?: boolean;
   className?: string;
 }) {
@@ -412,13 +426,19 @@ export function TableActionButton({
     subtle: "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800",
   };
 
+  const sizeStyles = {
+    sm: "h-7 px-2.5 text-[11px] gap-1",
+    md: "h-8 px-3 text-xs gap-1.5",
+  };
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-7 px-2.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer",
+        "rounded-lg border font-semibold flex items-center transition-all cursor-pointer",
+        sizeStyles[size],
         variantStyles[variant],
         disabled && "opacity-40 cursor-not-allowed",
         className
@@ -435,11 +455,13 @@ export function UserAvatarCell({
   name,
   subtitle,
   avatarUrl,
+  size = "md",
   className,
 }: {
   name: string;
   subtitle?: string;
   avatarUrl?: string | null;
+  size?: "sm" | "md";
   className?: string;
 }) {
   const initials = useMemo(() => {
@@ -449,24 +471,26 @@ export function UserAvatarCell({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }, [name]);
 
+  const avatarSize = size === "sm" ? "w-7 h-7 text-[10px]" : "w-9 h-9 text-xs";
+
   return (
-    <div className={cn("flex items-center gap-3 min-w-0", className)}>
+    <div className={cn("flex items-center min-w-0", size === "sm" ? "gap-2.5" : "gap-3", className)}>
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={avatarUrl}
           alt={name}
-          className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
+          className={cn("rounded-full object-cover shrink-0 border border-slate-200", avatarSize)}
         />
       ) : (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs">
+        <div className={cn("rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white font-bold flex items-center justify-center shrink-0 shadow-2xs", avatarSize)}>
           {initials}
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-bold text-slate-900 truncate leading-tight">{name}</p>
+        <p title={name} className={cn("font-bold text-slate-900 truncate leading-tight cursor-default", size === "sm" ? "text-xs" : "text-sm")}>{name}</p>
         {subtitle && (
-          <p className="text-[11px] text-slate-400 truncate leading-tight mt-0.5">{subtitle}</p>
+          <p title={subtitle} className={cn("text-slate-500 truncate leading-tight mt-0.5 cursor-default", size === "sm" ? "text-[11px]" : "text-xs")}>{subtitle}</p>
         )}
       </div>
     </div>

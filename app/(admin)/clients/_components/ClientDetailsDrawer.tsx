@@ -20,7 +20,14 @@ import type { AdminClientRecord } from "@/lib/types";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteClient } from "@/lib/api/admin.api";
-import { formatName, getInitials } from "./client-columns";
+import { formatName } from "./client-columns";
+
+function getInitials(firstName?: string, lastName?: string, email?: string): string {
+  if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  if (firstName) return firstName.slice(0, 2).toUpperCase();
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "??";
+}
 import { ClientOrgCard } from "./ClientOrgCard";
 
 interface ClientDetailsDrawerProps {

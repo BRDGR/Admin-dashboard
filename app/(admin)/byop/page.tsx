@@ -10,6 +10,9 @@ import {
   ShieldCheck,
   Copy,
   Check,
+  UserPlus,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import {
@@ -18,11 +21,13 @@ import {
   UserAvatarCell,
   TableActionButton,
   StatusBadge,
+  Button,
 } from "@/components/ui";
 import { useByopRelationships, useDeleteByopInvitations, useByopAnalytics } from "@/lib/hooks/useByop";
 import { listAdminInviteCodes } from "@/lib/api/admin.api";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { InviteByopModal } from "./_components/InviteByopModal";
 import type { ByopRelationship, AdminInviteCodeRecord } from "@/lib/types";
 import type { Column } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -36,6 +41,8 @@ export default function ByopPage() {
   const [selectedRelIds, setSelectedRelIds] = useState<string[]>([]);
   const [selectedCodeIds, setSelectedCodeIds] = useState<string[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
 
   const { data, isLoading } = useByopRelationships(page, 20, search || undefined);
   const { mutate: cleanup, isPending } = useDeleteByopInvitations();
@@ -305,7 +312,7 @@ export default function ByopPage() {
           <TableActionButton
             icon={<Trash2 className="w-3.5 h-3.5" />}
             label={isPending ? "Cleaning..." : "Clean Invitations"}
-            onClick={() => cleanup()}
+            onClick={() => setShowCleanupConfirm(true)}
             variant="danger"
           />
         )}
@@ -323,6 +330,11 @@ export default function ByopPage() {
           onSearchChange={(val) => {
             setSearch(val);
             setPage(1);
+          }}
+          primaryAction={{
+            label: "Invite Partner",
+            icon: <UserPlus className="w-3.5 h-3.5" />,
+            onClick: () => setShowInviteModal(true),
           }}
           selectable
           selectedIds={selectedRelIds}
@@ -345,6 +357,43 @@ export default function ByopPage() {
           onSelectionChange={setSelectedCodeIds}
           getRowId={(r) => r.code}
         />
+      )}
+
+      {showInviteModal && (
+        <InviteByopModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
+      )}
+
+      {showCleanupConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-100 p-6 space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">Clean Expired Invitations?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                This will purge all expired and declined BYOP partner invitations from the system. Active relationships will not be affected.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setShowCleanupConfirm(false)} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                isLoading={isPending}
+                onClick={() => {
+                  cleanup(undefined, {
+                    onSettled: () => setShowCleanupConfirm(false),
+                  });
+                }}
+              >
+                Purge Invitations
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

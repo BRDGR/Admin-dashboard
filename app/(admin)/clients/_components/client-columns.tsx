@@ -2,16 +2,14 @@ import Link from "next/link";
 import { format } from "date-fns";
 import {
   Building2,
-  Mail,
   MapPin,
   Building,
   ShieldCheck,
-  ArrowRight,
+  Eye,
 } from "lucide-react";
 import type { AdminClientRecord } from "@/lib/types";
 import type { Column } from "@/components/ui";
-import { StatusBadge, TableActionButton, UserAvatarCell } from "@/components/ui";
-import { Eye } from "lucide-react";
+import { StatusBadge, TableActionButton, UserAvatarCell, TruncatedText } from "@/components/ui";
 
 export function formatName(firstName?: string, lastName?: string): string {
   const parts = [firstName, lastName].filter(Boolean).map((p) => p!.trim()).filter(Boolean);
@@ -21,15 +19,6 @@ export function formatName(firstName?: string, lastName?: string): string {
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
-}
-
-export function getInitials(firstName?: string, lastName?: string, email?: string): string {
-  const f = firstName?.trim();
-  const l = lastName?.trim();
-  if (f && l) return `${f[0]}${l[0]}`.toUpperCase();
-  if (f) return f[0].toUpperCase();
-  if (email) return email[0].toUpperCase();
-  return "C";
 }
 
 interface GetClientColumnsProps {
@@ -47,6 +36,7 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
           <UserAvatarCell
             name={name}
             subtitle={client.user?.email || "—"}
+            size="md"
           />
         );
       },
@@ -68,22 +58,27 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
         const moreCount = (client.organizations?.length || 1) - 1;
 
         return (
-          <div>
-            <div className="flex items-center gap-1.5">
-              <p className="text-[13px] font-semibold text-slate-900 leading-tight">{org.name}</p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 max-w-[240px]">
+              <TruncatedText
+                text={org.name}
+                maxWidth="max-w-[200px]"
+                label="Corporate Entity"
+                className="text-sm font-semibold text-slate-900 leading-tight"
+              />
               {org.isVerified && (
                 <span title="Verified Corporate Entity">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 </span>
               )}
               {moreCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-semibold">
                   +{moreCount}
                 </span>
               )}
             </div>
             {org.companyType && (
-              <span className="text-[10px] text-slate-500 font-medium capitalize">
+              <span className="text-xs text-slate-500 capitalize block leading-tight">
                 {org.companyType}
               </span>
             )}
@@ -96,33 +91,24 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
       header: "Jurisdiction",
       render: (client) => {
         const country = client.organization?.country || client.partnerProfile?.location;
-        if (!country) return <span className="text-xs text-slate-400">—</span>;
+        if (!country) return <span className="text-sm text-slate-400">—</span>;
         return (
-          <div className="flex items-center gap-1 text-xs text-slate-600">
-            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-            <span>{country}</span>
+          <div className="flex items-center gap-1.5 text-sm text-slate-700">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate max-w-[140px]">{country}</span>
           </div>
         );
       },
     },
     {
       key: "orgStatus",
-      header: "KYC / Standing",
+      header: "Standing",
       render: (client) => {
         const org = client.organization;
-        if (!org) {
-          return <span className="text-xs text-slate-400">—</span>;
-        }
+        if (!org) return <span className="text-sm text-slate-400">—</span>;
         return (
-          <div className="flex flex-col gap-0.5">
-            <StatusBadge status={org.status || "active"} />
-            <span
-              className={`text-[10px] font-semibold flex items-center gap-0.5 ${
-                org.isVerified ? "text-emerald-600" : "text-slate-400"
-              }`}
-            >
-              {org.isVerified ? "Verified" : "Unverified"}
-            </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <StatusBadge status={org.status || "active"} size="md" />
           </div>
         );
       },
@@ -132,7 +118,7 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
       header: "Account",
       render: (client) => (
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${
             client.user?.isActive
               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
               : "bg-slate-100 text-slate-600 border-slate-200"
@@ -152,9 +138,9 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
       header: "Joined",
       render: (client) => {
         const date = client.user?.createdAt || client.createdAt;
-        if (!date) return <span className="text-xs text-slate-400">—</span>;
+        if (!date) return <span className="text-sm text-slate-400">—</span>;
         return (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 whitespace-nowrap">
             {format(new Date(date), "MMM d, yyyy")}
           </span>
         );
@@ -162,7 +148,7 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "",
       align: "right",
       render: (client) => (
         <div className="flex items-center justify-end gap-2">
@@ -170,11 +156,12 @@ export function getClientColumns({ onSelectClient }: GetClientColumnsProps): Col
             icon={<Eye className="w-3.5 h-3.5" />}
             label="Details"
             onClick={() => onSelectClient(client)}
+            size="md"
           />
           {client.organization?.id && (
             <Link
               href={`/organizations/${client.organization.id}`}
-              className="h-7 px-2 rounded-lg border border-slate-200/90 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold flex items-center gap-1 transition-all"
+              className="h-8 px-2.5 rounded-lg border border-slate-200/90 text-slate-600 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-all"
               title="Open Organization Page"
             >
               <Building2 className="w-3.5 h-3.5 text-slate-500" />

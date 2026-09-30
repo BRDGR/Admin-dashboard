@@ -40,10 +40,25 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       // Fetch profile to restore admin object
       apiRequest<ApiEnvelope<{ user: StaffMember }>>("/admins/profile", { token: stored })
         .then((res) => {
-          if (res.data?.data?.user) setAdmin(res.data.data.user);
-          else clearToken();
+          const user =
+            res.data?.data?.user ??
+            (res.data?.data as any)?.admin ??
+            (res.data as any)?.user ??
+            (res.data as any)?.admin ??
+            ((res.data?.data as any)?.id ? (res.data?.data as any) : null);
+
+          if (user) {
+            setAdmin(user);
+          } else if (!res.ok) {
+            // Only clear token if server explicitly rejected or responded with an error
+            clearToken();
+            setTokenState(null);
+          }
         })
-        .catch(() => clearToken())
+        .catch(() => {
+          clearToken();
+          setTokenState(null);
+        })
         .finally(() => setIsInitializing(false));
     } else {
       setIsInitializing(false);
@@ -63,7 +78,17 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         throw new Error(res.data?.message || res.error || "Login failed");
       }
 
-      const { user, tokens } = res.data.data;
+      const rawData = res.data.data;
+      const user = rawData?.user ?? (rawData as any)?.admin;
+      const tokens = rawData?.tokens ?? (rawData as any)?.token;
+      const accessToken =
+        typeof tokens === "string"
+          ? tokens
+          : tokens?.accessToken ?? (tokens as any)?.token ?? (tokens as any)?.access_token;
+
+      if (!accessToken || !user) {
+        throw new Error("Invalid credentials or server response format.");
+      }
 
       // Guard: allow all administrative/staff roles
       const allowedRoles = ["admin", "ops_admin", "super_admin", "staff", "reviewer", "support"];
@@ -71,8 +96,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Access denied. Admin credentials required.");
       }
 
-      setToken(tokens.accessToken);
-      setTokenState(tokens.accessToken);
+      setToken(accessToken);
+      setTokenState(accessToken);
       setAdmin(user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";

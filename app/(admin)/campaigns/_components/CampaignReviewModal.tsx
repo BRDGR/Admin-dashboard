@@ -9,6 +9,8 @@ import type { AdminCampaignQueueItem, CampaignReviewPayload } from "@/lib/types"
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
+import { toast } from "sonner";
+
 interface CampaignReviewModalProps {
   campaign: AdminCampaignQueueItem;
   onClose: () => void;
@@ -48,6 +50,7 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
       const payload: CampaignReviewPayload = {
         status: statusMap[reviewAction],
         reason: reviewReason || undefined,
+        rejectionReason: reviewReason || undefined,
         notes: reviewNotes || undefined,
         requestedChanges: reviewChanges
           ? reviewChanges.split("\n").filter(Boolean)
@@ -60,6 +63,11 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "campaigns", "queue"] });
+      if (reviewAction === "approve") {
+        toast.success("Campaign approved and advanced to matching queue");
+      } else {
+        toast.success("Campaign review decision saved");
+      }
       if (reviewAction === "approve" && onApproved) {
         onApproved({ ...campaign, status: "matching" });
       } else {
@@ -68,6 +76,7 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
     },
     onError: (err: Error) => {
       setSubmitError(err.message);
+      toast.error(err.message || "Failed to submit review");
     },
   });
 

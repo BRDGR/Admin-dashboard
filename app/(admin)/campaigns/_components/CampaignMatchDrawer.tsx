@@ -9,6 +9,9 @@ import type { AdminCampaignQueueItem, CampaignMatchPartner } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
+import { toast } from "sonner";
+import { logger } from "@/lib/logger";
+
 interface CampaignMatchDrawerProps {
   campaign: AdminCampaignQueueItem;
   onClose: () => void;
@@ -25,11 +28,7 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
 
   const canRunMatching = campaign.status === "matching";
 
-  console.log(
-    `%c[CampaignMatchDrawer] Opened match drawer for campaign: ${campaign.id}`,
-    "color: #10b981; font-weight: bold;",
-    campaign
-  );
+  logger.debug(`[CampaignMatchDrawer] Opened match drawer for campaign: ${campaign.id}`, campaign);
 
   const orgName = campaign.organization?.name ?? campaign.organizationName ?? "Client Org";
   const currency = campaign.budgetCurrency ?? campaign.currency ?? "USD";
@@ -47,10 +46,10 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
   const { data: matchData, isLoading: matchesLoading } = useQuery({
     queryKey: ["admin", "campaigns", "matches", campaign.id],
     queryFn: async () => {
-      console.log("[CampaignMatchDrawer] Requesting AI matches for campaign:", campaign.id);
+      logger.debug("[CampaignMatchDrawer] Requesting AI matches for campaign:", campaign.id);
       const res = await getCampaignMatches(campaign.id, { minMatchScore: 50, limit: 15 });
       if (res.error) throw new Error(res.error);
-      console.log("[CampaignMatchDrawer] Matches returned:", res.data?.data);
+      logger.debug("[CampaignMatchDrawer] Matches returned:", res.data?.data);
       return res.data?.data;
     },
     // Only run the matching engine query when the campaign is in `matching` status
@@ -66,17 +65,14 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
         invitationType,
         customMessage: customAssignMessage || undefined,
       };
-      console.log(
-        `%c[CampaignMatchDrawer] Assigning partners to ${campaign.id}:`,
-        "color: #f59e0b; font-weight: bold;",
-        payload
-      );
+      logger.debug(`[CampaignMatchDrawer] Assigning partners to ${campaign.id}:`, payload);
       const res = await assignCampaignPartners(campaign.id, payload);
       if (res.error) throw new Error(res.error);
       return res.data;
     },
     onSuccess: (data) => {
-      console.log("[CampaignMatchDrawer] Partner assignment success:", data);
+      logger.debug("[CampaignMatchDrawer] Partner assignment success:", data);
+      toast.success("Partners assigned to campaign successfully");
       queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] });
       if (onAssigned) {
         // Hand off to Assignments modal so admin can see who was just invited
@@ -85,8 +81,9 @@ export function CampaignMatchDrawer({ campaign, onClose, onAssigned }: CampaignM
         onClose();
       }
     },
-    onError: (err) => {
-      console.error("[CampaignMatchDrawer] Assignment failed:", err);
+    onError: (err: any) => {
+      logger.error("[CampaignMatchDrawer] Assignment failed:", err);
+      toast.error(err.message || "Failed to assign partners");
     },
   });
 

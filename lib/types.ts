@@ -288,7 +288,7 @@ export interface CreateStaffPayload {
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "ops_admin";
+  role: "admin" | "ops_admin" | "super_admin";
 }
 
 // ─── Seed History ─────────────────────────────────────────────────────────────
@@ -400,6 +400,7 @@ export interface CampaignReviewPayload {
   /** The target status — API accepts: matching, active, cancelled */
   status: AdminCampaignQueueItem["status"];
   reason?: string;
+  rejectionReason?: string;
   notes?: string;
   requestedChanges?: string[];
 }

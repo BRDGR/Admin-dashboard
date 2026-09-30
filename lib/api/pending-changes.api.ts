@@ -1,4 +1,5 @@
 import { apiRequest, type ApiResponse } from "./client";
+import { logger } from "@/lib/logger";
 import type {
   ApiEnvelope,
   PendingChangeItem,
@@ -19,12 +20,15 @@ export function listPendingChanges(params?: {
   if (params?.status) query.set("status", params.status);
 
   const qs = query.toString();
-  return apiRequest(`/admin/pending-changes${qs ? `?${qs}` : ""}`);
+  const url = `/admin/pending-changes${qs ? `?${qs}` : ""}`;
+  logger.debug(`[pending-changes.api] GET ${url}`, { params });
+  return apiRequest(url);
 }
 
 export function getPendingChange(
   id: string
 ): Promise<ApiResponse<ApiEnvelope<{ pendingChange: PendingChangeItem }>>> {
+  logger.debug(`[pending-changes.api] GET /admin/pending-changes/${id}`);
   return apiRequest(`/admin/pending-changes/${id}`);
 }
 
@@ -32,6 +36,7 @@ export function reviewPendingChange(
   id: string,
   payload: ReviewPendingChangePayload
 ): Promise<ApiResponse<ApiEnvelope<{ pendingChange: PendingChangeItem }>>> {
+  logger.debug(`[pending-changes.api] POST /admin/pending-changes/${id}/review`, payload);
   return apiRequest(`/admin/pending-changes/${id}/review`, {
     method: "POST",
     body: payload,
