@@ -46,6 +46,7 @@ export default function PartnerDetailPage({
   const qc = useQueryClient();
   const { data, isLoading } = usePartner(userId);
   const { data: kycData } = usePartnerKycList(1, 50);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const partner = extractPartnerRecord(data);
   const profile = partner?.partnerProfile;
@@ -116,6 +117,22 @@ export default function PartnerDetailPage({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await deletePartner(userId);
+      if (!res.ok) throw new Error(res.error || "Failed to delete partner");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Partner record deleted successfully");
+      qc.invalidateQueries({ queryKey: ["admin", "partners"] });
+      router.push("/partners");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to delete partner");
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -142,24 +159,6 @@ export default function PartnerDetailPage({
       </div>
     );
   }
-
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const res = await deletePartner(userId);
-      if (!res.ok) throw new Error(res.error || "Failed to delete partner");
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success("Partner record deleted successfully");
-      qc.invalidateQueries({ queryKey: ["admin", "partners"] });
-      router.push("/partners");
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete partner");
-    },
-  });
 
   return (
     <div className="space-y-6">

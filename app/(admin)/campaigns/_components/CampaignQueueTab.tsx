@@ -7,18 +7,16 @@ import {
   CheckCircle,
   Play,
   AlertTriangle,
-  Search,
   Sparkles,
   Users,
   Activity,
   Calendar,
+  ShieldCheck,
 } from "lucide-react";
 import {
-  SectionCard,
   DataTable,
   StatusBadge,
-  Pagination,
-  Button,
+  TableActionButton,
   MetricCard,
   type Column,
 } from "@/components/ui";
@@ -59,11 +57,13 @@ export function CampaignQueueTab({
 }: CampaignQueueTabProps) {
   const [localSearch, setLocalSearch] = useState("");
   const [localStatus, setLocalStatus] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const columns: Column<AdminCampaignQueueItem>[] = [
     {
       key: "campaign",
       header: "Campaign & Client",
+      sortable: true,
       render: (item) => {
         const orgName = item.organization?.name ?? item.organizationName ?? "Client Org";
         return (
@@ -84,6 +84,7 @@ export function CampaignQueueTab({
     {
       key: "budget",
       header: "Commercials",
+      sortable: true,
       render: (item) => {
         const currency = item.budgetCurrency ?? item.currency ?? "USD";
         const formattedAmount = item.budgetAmount
@@ -149,6 +150,7 @@ export function CampaignQueueTab({
     {
       key: "submitted",
       header: "Submitted",
+      sortable: true,
       render: (item) => (
         <span className="text-xs text-slate-400">
           {item.submittedAt || item.createdAt
@@ -161,87 +163,57 @@ export function CampaignQueueTab({
       key: "actions",
       header: "Pipeline Actions",
       render: (item) => (
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center justify-end gap-1.5 flex-wrap">
           {/* Review button — available on pending_review, submitted, in_review, changes_requested */}
           {(item.status === "pending_review" ||
             item.status === "submitted" ||
             item.status === "in_review" ||
             item.status === "changes_requested") && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-7 px-2.5 text-blue-600 border-blue-200 hover:bg-blue-50 cursor-pointer"
-              onClick={() => {
-                console.log("[CampaignQueueTab] Triggered review on:", item.id, item.name);
-                onReview(item);
-              }}
-            >
-              Review
-            </Button>
+            <TableActionButton
+              icon={<ShieldCheck className="w-3.5 h-3.5" />}
+              label="Review"
+              onClick={() => onReview(item)}
+              variant="primary"
+            />
           )}
 
           {/* AI Match & Assign — available once campaign is in `matching` status */}
           {item.status === "matching" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              title="AI Match & Assign Partners"
-              className="text-xs h-7 px-2 text-[#0364FF] hover:bg-blue-50 cursor-pointer"
-              onClick={() => {
-                console.log("[CampaignQueueTab] Triggered match on:", item.id, item.name);
-                onMatch(item);
-              }}
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1 text-[#0364FF]" />
-              Match
-            </Button>
+            <TableActionButton
+              icon={<Sparkles className="w-3.5 h-3.5" />}
+              label="Match"
+              onClick={() => onMatch(item)}
+              variant="primary"
+            />
           )}
 
           {/* View Assignments */}
-          <Button
-            size="sm"
-            variant="ghost"
-            title="View Partner Assignments"
-            className="text-xs h-7 px-2 text-slate-600 hover:bg-slate-100 cursor-pointer"
-            onClick={() => {
-              console.log("[CampaignQueueTab] Triggered view assignments on:", item.id);
-              onViewAssignments(item);
-            }}
-          >
-            <Users className="w-3.5 h-3.5" />
-          </Button>
+          <TableActionButton
+            icon={<Users className="w-3.5 h-3.5" />}
+            label="Assignments"
+            onClick={() => onViewAssignments(item)}
+            variant="outline"
+          />
 
           {/* Activate button — available once partners are assigned */}
           {item.status === "assigned" && (
-            <Button
-              size="sm"
+            <TableActionButton
+              icon={<Play className="w-3.5 h-3.5" />}
+              label={isActivating ? "Activating..." : "Activate"}
+              disabled={isActivating}
+              onClick={() => onActivate(item.id)}
               variant="primary"
-              className="text-xs h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-              isLoading={isActivating}
-              onClick={() => {
-                console.log("[CampaignQueueTab] Triggered activate on:", item.id);
-                onActivate(item.id);
-              }}
-            >
-              <Play className="w-3 h-3 mr-1" />
-              Activate
-            </Button>
+            />
           )}
 
           {/* Performance & PIP */}
           {item.status === "active" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              title="Performance & Health"
-              className="text-xs h-7 px-2 text-purple-600 hover:bg-purple-50 cursor-pointer"
-              onClick={() => {
-                console.log("[CampaignQueueTab] Triggered performance modal on:", item.id);
-                onViewPerformance(item);
-              }}
-            >
-              <Activity className="w-3.5 h-3.5" />
-            </Button>
+            <TableActionButton
+              icon={<Activity className="w-3.5 h-3.5" />}
+              label="Health"
+              onClick={() => onViewPerformance(item)}
+              variant="outline"
+            />
           )}
         </div>
       ),
@@ -292,76 +264,63 @@ export function CampaignQueueTab({
         />
       </div>
 
-      <SectionCard
-        title="Campaign Review Queue"
-        subtitle="Incoming campaigns requiring administrative approval, AI partner matching, and activation"
-      >
-        {/* Filter Controls */}
-        <div className="p-5 pb-0">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  placeholder="Search by name, client, category..."
-                  value={localSearch}
-                  onChange={(e) => {
-                    setLocalSearch(e.target.value);
-                    onSearchChange(e.target.value);
-                  }}
-                  className="w-full text-xs pl-8 pr-3 h-8 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#0364FF]"
-                />
-              </div>
-              <select
-                value={localStatus}
-                onChange={(e) => {
-                  setLocalStatus(e.target.value);
-                  onStatusFilterChange(e.target.value);
-                }}
-                className="text-xs h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 outline-none cursor-pointer"
-              >
-                <option value="">All Statuses</option>
-                <option value="pending_review">Pending Review</option>
-                <option value="submitted">Submitted</option>
-                <option value="in_review">In Review</option>
-                <option value="matching">Matching</option>
-                <option value="assigned">Assigned</option>
-                <option value="approved">Approved</option>
-                <option value="changes_requested">Changes Requested</option>
-                <option value="active">Active</option>
-                <option value="rejected">Rejected</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            <span className="text-xs text-slate-400">
-              {totalRecords} total campaigns in pipeline
-            </span>
-          </div>
+      {/* Filter and Status Select */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <select
+            value={localStatus}
+            onChange={(e) => {
+              setLocalStatus(e.target.value);
+              onStatusFilterChange(e.target.value);
+            }}
+            className="text-xs h-9 px-3 bg-white border border-slate-200/90 rounded-xl text-slate-700 font-medium outline-none cursor-pointer focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all"
+          >
+            <option value="">All Statuses ({totalRecords})</option>
+            <option value="pending_review">Pending Review</option>
+            <option value="submitted">Submitted</option>
+            <option value="in_review">In Review</option>
+            <option value="matching">Matching</option>
+            <option value="assigned">Assigned</option>
+            <option value="approved">Approved</option>
+            <option value="changes_requested">Changes Requested</option>
+            <option value="active">Active</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
 
-        <DataTable
-          columns={columns}
-          data={campaigns}
-          isLoading={isLoading}
-          emptyMessage="No campaigns found in queue matching current filter."
-        />
+        <span className="text-xs text-slate-500 font-medium">
+          {totalRecords} campaigns in pipeline
+        </span>
+      </div>
 
-        {totalPages > 1 && (
-          <Pagination
-            pagination={{
-              currentPage: page,
-              totalPages,
-              totalRecords,
-              hasNext: page < totalPages,
-              hasPrev: page > 1,
-              nextPage: page < totalPages ? page + 1 : null,
-              prevPage: page > 1 ? page - 1 : null,
-            }}
-            onPageChange={onPageChange}
-          />
-        )}
-      </SectionCard>
+      {/* Standardized DataTable */}
+      <DataTable
+        columns={columns}
+        data={campaigns}
+        isLoading={isLoading}
+        emptyMessage="No campaigns found in queue matching current filter."
+        searchPlaceholder="Search campaigns by name, client, category..."
+        searchValue={localSearch}
+        onSearchChange={(val) => {
+          setLocalSearch(val);
+          onSearchChange(val);
+        }}
+        selectable
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        getRowId={(r) => r.id}
+        pagination={{
+          currentPage: page,
+          totalPages,
+          totalRecords,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          nextPage: page < totalPages ? page + 1 : null,
+          prevPage: page > 1 ? page - 1 : null,
+        }}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

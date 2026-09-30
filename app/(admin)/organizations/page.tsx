@@ -1,135 +1,179 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Building2 } from "lucide-react";
+import { Building2, Eye, SlidersHorizontal } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
-import { SectionCard, DataTable, StatusBadge, Pagination, EmptyState } from "@/components/ui";
+import {
+  DataTable,
+  StatusBadge,
+  TableActionButton,
+  type Column,
+} from "@/components/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrganizations } from "@/lib/hooks/useOrganizations";
 import type { OrganizationRecord } from "@/lib/types";
-import type { Column } from "@/components/ui";
 import { UpdateOrgStatusModal } from "./_components/UpdateOrgStatusModal";
 
 function useColumns(onEditStatus: (record: OrganizationRecord) => void): Column<OrganizationRecord>[] {
   const router = useRouter();
   return [
-  {
-    key: "name", header: "Organization",
-    render: ({ organization }) => (
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-          <Building2 className="w-4 h-4 text-slate-400" />
+    {
+      key: "name",
+      header: "Organization",
+      render: ({ organization }) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0364FF] flex items-center justify-center shrink-0 border border-blue-100/60 font-bold text-xs">
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-900 leading-tight">{organization.name}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[180px] leading-tight">
+              {organization.email}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-[13px] font-semibold text-slate-900">{organization.name}</p>
-          <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{organization.email}</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "type", header: "Type",
-    render: ({ organization }) => (
-      <span className="text-xs text-slate-600 capitalize">{organization.companyType ?? "—"}</span>
-    ),
-  },
-  {
-    key: "country", header: "Country",
-    render: ({ organization }) => (
-      <span className="text-xs text-slate-600">{organization.country ?? "—"}</span>
-    ),
-  },
-  {
-    key: "status", header: "Status",
-    render: (record) => (
-      <button
-        onClick={() => onEditStatus(record)}
-        title="Click to update status"
-        className="cursor-pointer hover:opacity-80 transition-opacity"
-      >
-        <StatusBadge status={record.organization.status ?? "pending"} />
-      </button>
-    ),
-  },
-  {
-    key: "verified", header: "Verified",
-    render: (record) => (
-      <button
-        onClick={() => onEditStatus(record)}
-        title="Click to toggle verification"
-        className={`text-xs font-semibold cursor-pointer hover:underline ${
-          record.organization.isVerified ? "text-green-600" : "text-slate-400"
-        }`}
-      >
-        {record.organization.isVerified ? "Yes" : "No"}
-      </button>
-    ),
-  },
-  {
-    key: "owner", header: "Owner",
-    render: ({ owner }) => (
-      <div>
-        <p className="text-[12px] font-medium text-slate-800">{owner.firstName} {owner.lastName}</p>
-        <p className="text-[10px] text-slate-400">{owner.email}</p>
-      </div>
-    ),
-  },
-  {
-    key: "created", header: "Created",
-    render: ({ organization }) => (
-      <span className="text-xs text-slate-400">
-        {organization.createdAt ? format(new Date(organization.createdAt), "MMM d, yyyy") : "—"}
-      </span>
-    ),
-  },
-  {
-    key: "action", header: "",
-    render: (record) => (
-      <div className="flex items-center gap-3">
+      ),
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: ({ organization }) => (
+        <span className="text-xs font-medium text-slate-700 capitalize bg-slate-100 px-2 py-0.5 rounded border border-slate-200/60">
+          {organization.companyType ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "country",
+      header: "Jurisdiction",
+      render: ({ organization }) => (
+        <span className="text-xs text-slate-600 font-medium">{organization.country ?? "—"}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (record) => (
         <button
+          type="button"
           onClick={() => onEditStatus(record)}
-          className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+          title="Click to update status"
+          className="cursor-pointer hover:opacity-80 transition-opacity"
         >
-          Status
+          <StatusBadge status={record.organization.status ?? "pending"} />
         </button>
+      ),
+    },
+    {
+      key: "verified",
+      header: "Verified",
+      render: (record) => (
         <button
-          onClick={() => router.push(`/organizations/${record.organization.id}`)}
-          className="text-[11px] font-semibold text-[#0364FF] hover:underline cursor-pointer"
+          type="button"
+          onClick={() => onEditStatus(record)}
+          title="Click to toggle verification"
+          className={`text-xs font-semibold cursor-pointer hover:underline ${
+            record.organization.isVerified ? "text-emerald-600" : "text-slate-400"
+          }`}
         >
-          View →
+          {record.organization.isVerified ? "Verified" : "Unverified"}
         </button>
-      </div>
-    ),
-  },
+      ),
+    },
+    {
+      key: "owner",
+      header: "Owner",
+      render: ({ owner }) => (
+        <div>
+          <p className="text-xs font-semibold text-slate-800 leading-tight">
+            {owner.firstName} {owner.lastName}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">{owner.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: "created",
+      header: "Created",
+      render: ({ organization }) => (
+        <span className="text-xs text-slate-500 whitespace-nowrap">
+          {organization.createdAt ? format(new Date(organization.createdAt), "MMM d, yyyy") : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (record) => (
+        <div className="flex items-center justify-end gap-2">
+          <TableActionButton
+            icon={<SlidersHorizontal className="w-3.5 h-3.5" />}
+            label="Status"
+            onClick={() => onEditStatus(record)}
+          />
+          <TableActionButton
+            icon={<Eye className="w-3.5 h-3.5" />}
+            label="View"
+            onClick={() => router.push(`/organizations/${record.organization.id}`)}
+          />
+        </div>
+      ),
+    },
   ];
 }
 
 export default function OrganizationsPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const qc = useQueryClient();
   const [editingOrg, setEditingOrg] = useState<OrganizationRecord | null>(null);
-  const { data, isLoading } = useOrganizations(page, 10);
+
+  const { data, isLoading } = useOrganizations(page, pageSize);
   const columns = useColumns((rec) => setEditingOrg(rec));
   const orgs = data?.organizations ?? [];
   const pagination = data?.pagination;
+
+  const filteredOrgs = useMemo(() => {
+    if (!searchQuery.trim()) return orgs;
+    const s = searchQuery.toLowerCase();
+    return orgs.filter((o) => {
+      const name = (o.organization?.name ?? "").toLowerCase();
+      const email = (o.organization?.email ?? "").toLowerCase();
+      const country = (o.organization?.country ?? "").toLowerCase();
+      const owner = `${o.owner?.firstName ?? ""} ${o.owner?.lastName ?? ""}`.toLowerCase();
+      return name.includes(s) || email.includes(s) || country.includes(s) || owner.includes(s);
+    });
+  }, [orgs, searchQuery]);
 
   return (
     <div className="space-y-6">
       <AdminTopBar title="Organizations" subtitle="Client organizations registered on the platform" />
 
-      <SectionCard title="All Organizations" subtitle={`${pagination?.totalRecords ?? 0} total`}>
-        {orgs.length === 0 && !isLoading
-          ? <EmptyState icon={Building2} title="No organizations yet" description="Organizations will appear here once clients onboard." />
-          : (
-            <>
-              <DataTable columns={columns} data={orgs} isLoading={isLoading} emptyMessage="No organizations found." />
-              {pagination && <Pagination pagination={pagination} onPageChange={setPage} />}
-            </>
-          )
-        }
-      </SectionCard>
+      <DataTable
+        columns={columns}
+        data={filteredOrgs}
+        isLoading={isLoading}
+        emptyMessage="No organizations found."
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        getRowId={(r) => r.organization.id}
+        itemLabel="Organizations"
+        searchPlaceholder="Search Organizations"
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        showFilterButton={true}
+        onFilterClick={() => {}}
+        pagination={pagination}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+      />
 
       <UpdateOrgStatusModal
         record={editingOrg}

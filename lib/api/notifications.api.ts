@@ -18,7 +18,7 @@ export function fetchNotifications(params?: {
   if (params?.type) query.set("type", params.type);
 
   const qs = query.toString();
-  return apiRequest(`/notifications${qs ? `?${qs}` : ""}`);
+  return apiRequest(`/notifications/${qs ? `?${qs}` : ""}`);
 }
 
 export function fetchUnreadCount(
