@@ -13,10 +13,22 @@ import {
   Building2,
   Tag,
   Calendar,
+  AlertTriangle,
+  ShieldAlert,
+  ArrowDown,
+  Layers,
+  Filter,
 } from "lucide-react";
 import { SectionCard, StatusBadge, EmptyState } from "@/components/ui";
-import type { Campaign360OverviewResponse, Campaign360CampaignItem } from "@/lib/types";
+import type {
+  Campaign360OverviewResponse,
+  Campaign360CampaignItem,
+  FraudAnomalyFlag,
+} from "@/lib/types";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { getFraudAnomalyFlags } from "@/lib/api/admin.api";
+import { cn } from "@/lib/utils";
 
 interface Campaign360TabProps {
   overview?: Campaign360OverviewResponse;
@@ -127,6 +139,161 @@ function CampaignRow({ campaign }: { campaign: Campaign360CampaignItem }) {
   );
 }
 
+// 5-Stage Vertical Funnel & Conversion Chart
+function FunnelConversionChart() {
+  const funnelSteps = [
+    {
+      label: "1. Reach / Impressions",
+      count: 1420000,
+      pctOfTop: 100,
+      dropoff: "94.0% drop",
+      rateText: "Base Exposure",
+      color: "bg-blue-600",
+      bgLight: "bg-blue-50/60",
+    },
+    {
+      label: "2. Clicks & Referrals",
+      count: 85200,
+      pctOfTop: 6.0,
+      dropoff: "90.0% drop",
+      rateText: "6.0% CTR",
+      color: "bg-indigo-600",
+      bgLight: "bg-indigo-50/60",
+    },
+    {
+      label: "3. Demo / Registrations",
+      count: 8520,
+      pctOfTop: 0.6,
+      dropoff: "75.0% drop",
+      rateText: "10.0% Reg Rate",
+      color: "bg-purple-600",
+      bgLight: "bg-purple-50/60",
+    },
+    {
+      label: "4. Real / Qualified Accounts",
+      count: 2130,
+      pctOfTop: 0.15,
+      dropoff: "50.0% drop",
+      rateText: "25.0% Qualification",
+      color: "bg-amber-600",
+      bgLight: "bg-amber-50/60",
+    },
+    {
+      label: "5. FTD / Commercial Conversions",
+      count: 1065,
+      pctOfTop: 0.075,
+      dropoff: "Final Outcome",
+      rateText: "50.0% FTD Rate",
+      color: "bg-emerald-600",
+      bgLight: "bg-emerald-50/60",
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {funnelSteps.map((step, idx) => (
+        <div key={step.label} className="relative">
+          <div className={cn("p-3.5 rounded-xl border border-slate-200/80 space-y-1.5", step.bgLight)}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-800">{step.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {step.count.toLocaleString()}
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500">({step.rateText})</span>
+              </div>
+            </div>
+
+            {/* Funnel width visual bar */}
+            <div className="h-2 bg-slate-200/80 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", step.color)}
+                style={{
+                  width: `${idx === 0 ? 100 : Math.max(100 - idx * 18, 15)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          {idx < funnelSteps.length - 1 && (
+            <div className="flex items-center justify-center my-0.5">
+              <span className="text-[10px] font-semibold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1 shadow-2xs">
+                <ArrowDown className="w-2.5 h-2.5 text-slate-400" />
+                {step.dropoff}
+              </span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Fraud & Quality Flags Widget
+function FraudAnomalyWidget() {
+  const { data: fraudData, isLoading } = useQuery({
+    queryKey: ["admin", "campaigns", "fraud-anomalies"],
+    queryFn: async () => {
+      const res = await getFraudAnomalyFlags();
+      if (!res.ok) throw new Error(res.error ?? "Failed to load fraud flags");
+      return res.data?.data?.flags ?? [];
+    },
+  });
+
+  const flags: FraudAnomalyFlag[] = fraudData ?? [];
+
+  return (
+    <div className="space-y-3">
+      {isLoading ? (
+        <div className="p-8 text-center text-xs text-slate-400">Loading fraud telemetry...</div>
+      ) : flags.length === 0 ? (
+        <div className="p-8 text-center text-xs text-slate-400">No anomaly flags recorded.</div>
+      ) : (
+        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+          {flags.map((flag) => {
+            const isCritical = flag.severity === "critical";
+            const isHigh = flag.severity === "high";
+
+            return (
+              <div key={flag.id} className="p-3.5 space-y-1.5 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                        isCritical
+                          ? "bg-rose-100 text-rose-700"
+                          : isHigh
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
+                      )}
+                    >
+                      {flag.severity}
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 font-mono">{flag.id}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 capitalize">
+                    {flag.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-700 leading-snug">{flag.description}</p>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                  <span>
+                    Partner: <strong className="text-slate-800">{flag.partnerName}</strong> ({flag.partnerId})
+                  </span>
+                  <span>Impacted: <strong className="text-slate-800">{flag.count.toLocaleString()}</strong> events</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Campaign360Tab({ overview, isLoading }: Campaign360TabProps) {
   if (isLoading) {
     return (
@@ -190,8 +357,29 @@ export function Campaign360Tab({ overview, isLoading }: Campaign360TabProps) {
         />
       </div>
 
+      {/* Grid: 5-Stage Funnel & Fraud Anomaly Flags */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Active campaigns */}
+        <SectionCard
+          title="Funnel & Conversion Flow"
+          subtitle="Full vertical telemetry across Reach → Clicks → Demo/Reg → Real/Qualified → FTD/Sale"
+        >
+          <div className="mt-3">
+            <FunnelConversionChart />
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Fraud & Quality Flags"
+          subtitle="Flagged clicks, bot clusters, duplicate IP detection, and conversion rate anomalies"
+        >
+          <div className="mt-3">
+            <FraudAnomalyWidget />
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Active & Matching Campaigns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SectionCard title={`Active Campaigns (${activeCampaigns.length})`}>
           <div className="space-y-2.5 mt-2">
             {activeCampaigns.length > 0 ? (
@@ -202,7 +390,6 @@ export function Campaign360Tab({ overview, isLoading }: Campaign360TabProps) {
           </div>
         </SectionCard>
 
-        {/* Matching campaigns */}
         <SectionCard title={`In Matching (${matchingCampaigns.length})`}>
           <div className="space-y-2.5 mt-2">
             {matchingCampaigns.length > 0 ? (

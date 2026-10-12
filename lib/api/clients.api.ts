@@ -1,6 +1,7 @@
 import { apiRequest, type ApiResponse } from "./client";
 import { listOrganizations } from "./organizations.api";
 import { listUsers } from "./users.api";
+import { logger } from "@/lib/logger";
 import type {
   ApiEnvelope,
   ClientsResponse,
@@ -47,7 +48,7 @@ export async function listClients(
   page = 1,
   limit = 20
 ): Promise<ApiResponse<ApiEnvelope<ClientsResponse>>> {
-  console.log(`[Clients API] listClients — GET /admin/clients?page=${page}&limit=${limit}`);
+  logger.debug(`[Clients API] listClients — GET /admin/clients?page=${page}&limit=${limit}`);
 
   const [res, orgsRes] = await Promise.all([
     apiRequest<ApiEnvelope<any>>(`/admin/clients?page=${page}&limit=${limit}`),
@@ -111,8 +112,6 @@ export async function listClients(
         message: "Clients retrieved successfully",
         data: {
           clients: normalizedClients,
-          partners: normalizedClients,
-          records: normalizedClients,
           pagination,
         },
       } as any,
@@ -156,8 +155,6 @@ export async function listClients(
         message: "Clients retrieved from user directory",
         data: {
           clients: synthesizedClients,
-          partners: synthesizedClients,
-          records: synthesizedClients,
           pagination,
         },
       } as any,
@@ -170,7 +167,7 @@ export async function listClients(
 export async function getClient(
   clientId: string
 ): Promise<ApiResponse<ApiEnvelope<{ client: AdminClientRecord }>>> {
-  console.log(`[Clients API] getClient — GET /admin/clients/${clientId}`);
+  logger.debug(`[Clients API] getClient — GET /admin/clients/${clientId}`);
   const [res, orgsRes] = await Promise.all([
     apiRequest<ApiEnvelope<any>>(`/admin/clients/${clientId}`),
     listOrganizations(1, 100).catch(() => ({ data: null })),

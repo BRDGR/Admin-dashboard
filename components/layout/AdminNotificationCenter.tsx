@@ -48,12 +48,12 @@ export function AdminNotificationCenter() {
     queryKey: ADMIN_NOTIFICATIONS_KEY,
     queryFn: async () => {
       const res = await fetchNotifications({ page: 1, limit: 15 });
-      if (res.error) throw new Error(res.error);
       return res.data?.data ?? null;
     },
     enabled: Boolean(admin),
     refetchInterval: 30000,
     staleTime: 15000,
+    retry: false,
   });
 
   const notifications: NotificationItem[] = query.data?.notifications ?? [];

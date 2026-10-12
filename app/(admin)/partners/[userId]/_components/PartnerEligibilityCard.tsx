@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useQuery } from "@tanstack/react-query";
 import { Award, CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
 import { getAdminPartnerEligibility } from "@/lib/api/admin.api";
@@ -27,21 +28,21 @@ export function PartnerEligibilityCard({
   } = useQuery({
     queryKey: ["admin", "partner", partnerUserId, "eligibility"],
     queryFn: async () => {
-      console.log("[PartnerEligibilityCard] Fetching eligibility for partner:", {
+      logger.debug("[PartnerEligibilityCard] Fetching eligibility for partner:", {
         partnerUserId,
         partnerProfileId,
       });
       try {
         const res = await getAdminPartnerEligibility(partnerUserId, partnerProfileId);
         if (!res.ok) {
-          console.warn("[PartnerEligibilityCard] Backend eligibility returned error status:", {
+          logger.warn("[PartnerEligibilityCard] Backend eligibility returned error status:", {
             status: res.status,
             error: res.error,
             rawResponse: res.data,
           });
           return undefined;
         }
-        console.log("[PartnerEligibilityCard] Backend eligibility returned successfully:", res.data?.data);
+        logger.debug("[PartnerEligibilityCard] Backend eligibility returned successfully:", res.data?.data);
         return res.data?.data;
       } catch (err) {
         console.error("[PartnerEligibilityCard] Error while fetching eligibility:", err);
@@ -104,7 +105,7 @@ export function PartnerEligibilityCard({
           title="Refresh eligibility status"
           disabled={isFetching}
           onClick={() => {
-            console.log("[PartnerEligibilityCard] Manually refetching eligibility...");
+            logger.debug("[PartnerEligibilityCard] Manually refetching eligibility...");
             refetch();
           }}
         >

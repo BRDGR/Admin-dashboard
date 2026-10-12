@@ -1,10 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listPartners, listNormalPartners, listByopPartners, getPartner, deletePartner } from "@/lib/api";
+import {
+  listPartners,
+  listNormalPartners,
+  listBrdgrPartners,
+  listUnmatchedPartners,
+  listByopPartners,
+  getPartner,
+  deletePartner,
+} from "@/lib/api";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import type { PartnersResponse } from "@/lib/types";
 
-export function usePartners(page = 1, limit = 20) {
+export function usePartners(page = 1, limit = 20, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "partners", page, limit],
     queryFn: async () => {
       const res = await listPartners(page, limit);
@@ -14,8 +24,9 @@ export function usePartners(page = 1, limit = 20) {
   });
 }
 
-export function useNormalPartners(page = 1, limit = 20) {
+export function useNormalPartners(page = 1, limit = 20, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "partners", "normal", page, limit],
     queryFn: async () => {
       const res = await listNormalPartners(page, limit);
@@ -25,8 +36,51 @@ export function useNormalPartners(page = 1, limit = 20) {
   });
 }
 
-export function useByopPartners(page = 1, limit = 20) {
+/** Branded hook for BRDGR Partners (formerly Normal Partners) */
+export function useBrdgrPartners(page = 1, limit = 20, enabled = true) {
   return useQuery({
+    enabled,
+    queryKey: ["admin", "partners", "brdgr", page, limit],
+    queryFn: async () => {
+      const res = await listBrdgrPartners(page, limit);
+      if (res.error) throw new Error(res.error);
+      return res.data?.data as PartnersResponse;
+    },
+  });
+}
+
+/**
+ * Hook to retrieve Unmatched Partners — verified/vetted partners currently not attached
+ * to an active partnership or campaign.
+ */
+export function useUnmatchedPartners(page = 1, limit = 20, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ["admin", "partners", "unmatched", page, limit],
+    queryFn: async () => {
+      const res = await listUnmatchedPartners(page, limit);
+      if (res.error) throw new Error(res.error);
+      const data = res.data?.data as PartnersResponse;
+      if (data?.partners) {
+        // Ensure only vetted partners are returned as unmatched/ready to match
+        const unmatched = data.partners.filter((p) => Boolean(p.partnerProfile?.isVetted));
+        return {
+          ...data,
+          partners: unmatched,
+          pagination: {
+            ...data.pagination,
+            totalRecords: unmatched.length,
+          },
+        };
+      }
+      return data;
+    },
+  });
+}
+
+export function useByopPartners(page = 1, limit = 20, enabled = true) {
+  return useQuery({
+    enabled,
     queryKey: ["admin", "partners", "byop", page, limit],
     queryFn: async () => {
       const res = await listByopPartners(page, limit);
@@ -40,9 +94,11 @@ export function usePartner(userId: string) {
   return useQuery({
     queryKey: ["admin", "partner", userId],
     queryFn: async () => {
-      console.log(`[usePartner] Fetching partner for id: ${userId}`);
+      logger.debug(`[usePartner] Fetching partner for id: ${userId}`);
       const res = await getPartner(userId);
-      console.log(`[usePartner] getPartner response for ${userId}:`, res);
+      logger.debug(`[usePartner] getPartner response for ${userId}:`, res);
+
+      if (res.error) throw new Error(res.error);
 
       const rawData = res.data?.data || res.data;
 
@@ -59,37 +115,10 @@ export function usePartner(userId: string) {
         return rawData as PartnersResponse;
       }
 
-      // If individual endpoint didn't find the partner, fall back to listPartners
-      console.warn(
-        `[usePartner] Individual getPartner returned no partner, trying listPartners fallback for ${userId}...`
-      );
-      const listRes = await listPartners(1, 100);
-      const list = listRes.data?.data?.partners || [];
-      const found = list.find(
-        (p) =>
-          p.user?.id === userId ||
-          p.partnerProfile?.id === userId ||
-          p.partnerProfile?.userId === userId
-      );
-
-      if (found) {
-        console.log(`[usePartner] Found partner in listPartners fallback:`, found);
-        return {
-          partners: [found],
-          pagination: {
-            currentPage: 1,
-            nextPage: null,
-            prevPage: null,
-            hasNext: false,
-            hasPrev: false,
-            totalPages: 1,
-            totalRecords: 1,
-          },
-        } as PartnersResponse;
-      }
-
-      console.warn(`[usePartner] Partner not found in listPartners fallback either for ${userId}`);
-      return (rawData ?? null) as PartnersResponse | null;
+      // No data found from single-partner endpoint — return null rather than
+      // issuing a fallback list fetch of 100 records to find one.
+      logger.warn(`[usePartner] getPartner returned no usable data for userId: ${userId}`);
+      return null;
     },
     enabled: Boolean(userId),
   });

@@ -2,14 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Eye, ShieldCheck, Building2 } from "lucide-react";
+import { Eye, ShieldCheck, Building2, Bell } from "lucide-react";
 import {
   DataTable,
   StatusBadge,
   TableActionButton,
   type Column,
 } from "@/components/ui";
-import { useOrgKycList, useReviewOrgKyc } from "@/lib/hooks/useKyc";
+import { useOrgKycList, useReviewOrgKyc, useSendOrgKycReminder } from "@/lib/hooks/useKyc";
 import type { KycRecordWithOrg } from "@/lib/types";
 import { OrgKycDetailDrawer } from "./OrgKycDetailDrawer";
 import { KycDecisionModal } from "./KycDecisionModal";
@@ -22,6 +22,8 @@ export function OrgKycTab() {
 
   const { data, isLoading } = useOrgKycList(page, pageSize);
   const { mutate: review, isPending } = useReviewOrgKyc();
+  const { mutate: sendReminder, isPending: isSendingReminder } = useSendOrgKycReminder();
+  const [sendingOrgId, setSendingOrgId] = useState<string | null>(null);
   const [reviewModal, setReviewModal] = useState<{ id: string; orgId: string; name: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -101,6 +103,21 @@ export function OrgKycTab() {
             label="View"
             onClick={() => kycRecord?.id && setDetailId(kycRecord.id)}
           />
+          {kycRecord?.status !== "verified" && (organization?.id || kycRecord?.orgId) && (
+            <TableActionButton
+              icon={<Bell className="w-3.5 h-3.5 text-amber-600" />}
+              label={sendingOrgId === (organization?.id || kycRecord?.orgId) ? "Sending..." : "Reminder"}
+              onClick={() => {
+                const orgId = organization?.id || kycRecord?.orgId;
+                if (!orgId) return;
+                setSendingOrgId(orgId);
+                sendReminder(orgId, {
+                  onSettled: () => setSendingOrgId(null),
+                });
+              }}
+              disabled={isSendingReminder && sendingOrgId === (organization?.id || kycRecord?.orgId)}
+            />
+          )}
           {kycRecord?.status === "pending" && (
             <TableActionButton
               icon={<ShieldCheck className="w-3.5 h-3.5 text-[#0364FF]" />}

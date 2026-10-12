@@ -12,9 +12,11 @@ import {
   MapPin,
   Copy,
   Check,
+  Bell,
 } from "lucide-react";
 import { StatusBadge, Button } from "@/components/ui";
 import { getPartner } from "@/lib/api/partners.api";
+import { useSendPartnerKycReminder } from "@/lib/hooks/useKyc";
 import type { PartnerKycRecord, PartnerProfile } from "@/lib/types";
 
 export interface PartnerKycDetailDrawerProps {
@@ -29,6 +31,7 @@ export function PartnerKycDetailDrawer({
   onOpenDecision,
 }: PartnerKycDetailDrawerProps) {
   const [copiedRef, setCopiedRef] = useState(false);
+  const { mutate: sendReminder, isPending: isSendingReminder } = useSendPartnerKycReminder();
 
   // Query partner profile
   const { data: partnerData, isLoading: partnerLoading } = useQuery({
@@ -235,16 +238,27 @@ export function PartnerKycDetailDrawer({
         </div>
 
         {/* Drawer Action Bar */}
-        {record.status === "pending" && onOpenDecision && (
-          <div className="p-4 border-t border-slate-100 bg-white">
+        <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-2">
+          {record.partnerUser?.id && (
             <Button
-              className="w-full text-xs font-semibold"
+              variant="outline"
+              className="flex-1 text-xs font-semibold border-slate-200"
+              onClick={() => record.partnerUser?.id && sendReminder(record.partnerUser.id)}
+              disabled={isSendingReminder}
+            >
+              <Bell className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+              {isSendingReminder ? "Sending..." : "Send Reminder"}
+            </Button>
+          )}
+          {record.status === "pending" && onOpenDecision && (
+            <Button
+              className="flex-1 text-xs font-semibold"
               onClick={() => onOpenDecision(record.kycRecordId, partnerName)}
             >
               <ShieldCheck className="w-4 h-4 mr-1.5" /> Make Review Decision
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

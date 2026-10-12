@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Loader2, Building2, Tag, DollarSign, Calendar } from "lucide-react";
@@ -27,7 +28,7 @@ export function CampaignPerformanceModal({ campaign, onClose }: CampaignPerforma
   const [pipMinCr, setPipMinCr] = useState("2.5");
   const [pipAutoPause, setPipAutoPause] = useState(true);
 
-  console.log(
+  logger.debug(
     `%c[CampaignPerformanceModal] Opened performance health for: ${campaign.id}`,
     "color: #8b5cf6; font-weight: bold;",
     campaign
@@ -49,23 +50,23 @@ export function CampaignPerformanceModal({ campaign, onClose }: CampaignPerforma
   const { data: perfData, isLoading: perfLoading } = useQuery({
     queryKey: ["admin", "campaigns", "performance", campaign.id],
     queryFn: async () => {
-      console.log("[CampaignPerformanceModal] Querying performance metrics for:", campaign.id);
+      logger.debug("[CampaignPerformanceModal] Querying performance metrics for:", campaign.id);
       const res = await getCampaignPerformance(campaign.id);
       if (res.error) throw new Error(res.error);
-      console.log("[CampaignPerformanceModal] Performance data received:", res.data?.data?.performance);
+      logger.debug("[CampaignPerformanceModal] Performance data received:", res.data?.data?.performance);
       return res.data?.data?.performance;
     },
   });
 
   const evaluateMutation = useMutation({
     mutationFn: async () => {
-      console.log("[CampaignPerformanceModal] Running SLA evaluation for:", campaign.id);
+      logger.debug("[CampaignPerformanceModal] Running SLA evaluation for:", campaign.id);
       const res = await evaluateCampaignPerformance(campaign.id);
       if (res.error) throw new Error(res.error);
       return res.data?.data?.evaluation;
     },
     onSuccess: (data) => {
-      console.log("[CampaignPerformanceModal] SLA evaluation result:", data);
+      logger.debug("[CampaignPerformanceModal] SLA evaluation result:", data);
       setEvaluationResult(data as Record<string, unknown>);
     },
     onError: (err) => {
@@ -83,7 +84,7 @@ export function CampaignPerformanceModal({ campaign, onClose }: CampaignPerforma
         },
         autoPauseOnFailure: pipAutoPause,
       };
-      console.log(
+      logger.debug(
         `%c[CampaignPerformanceModal] Placing campaign ${campaign.id} on PIP:`,
         "color: #ef4444; font-weight: bold;",
         payload
@@ -93,7 +94,7 @@ export function CampaignPerformanceModal({ campaign, onClose }: CampaignPerforma
       return res.data;
     },
     onSuccess: (data) => {
-      console.log("[CampaignPerformanceModal] PIP placed successfully:", data);
+      logger.debug("[CampaignPerformanceModal] PIP placed successfully:", data);
       setShowPipModal(false);
       setPipReason("");
       queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] });

@@ -12,9 +12,12 @@ import type {
 
 export function listUsers(
   page = 1,
-  limit = 20
+  limit = 20,
+  search?: string
 ): Promise<ApiResponse<ApiEnvelope<UsersResponse>>> {
-  return apiRequest(`/admins/users?page=${page}&limit=${limit}`);
+  const q = search?.trim();
+  const searchParam = q ? `&search=${encodeURIComponent(q)}` : "";
+  return apiRequest(`/admins/users?page=${page}&limit=${limit}${searchParam}`);
 }
 
 // ─── Staff ────────────────────────────────────────────────────────────────────
@@ -64,4 +67,25 @@ export function getAdminProfile(): Promise<ApiResponse<ApiEnvelope<{ user: Staff
 
 export function getSeedHistory(): Promise<ApiResponse<ApiEnvelope<SeedHistoryResponse>>> {
   return apiRequest("/admins/seed-history");
+}
+
+// ─── Admin Image Management ───────────────────────────────────────────────────
+
+export function uploadAdminImage(
+  file: File
+): Promise<ApiResponse<ApiEnvelope<{ user?: StaffMember; imageUrl?: string }>>> {
+  const formData = new FormData();
+  formData.append("image", file);
+  return apiRequest("/admins/upload-image", {
+    method: "PATCH",
+    body: formData,
+  });
+}
+
+export function removeAdminImage(): Promise<
+  ApiResponse<ApiEnvelope<{ user?: StaffMember }>>
+> {
+  return apiRequest("/admins/remove-image", {
+    method: "PATCH",
+  });
 }

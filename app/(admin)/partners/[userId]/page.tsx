@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -59,7 +60,7 @@ export default function PartnerDetailPage({
   useEffect(() => {
     if (!isLoading) {
       if (partner) {
-        console.log("[PartnerDetailPage] Partner data loaded successfully:", {
+        logger.debug("[PartnerDetailPage] Partner data loaded successfully:", {
           userId,
           partner,
           profile,
@@ -67,7 +68,7 @@ export default function PartnerDetailPage({
           kycRecord,
         });
       } else {
-        console.warn("[PartnerDetailPage] Partner record not found for userId:", userId, {
+        logger.warn("[PartnerDetailPage] Partner record not found for userId:", userId, {
           rawResponse: data,
         });
       }
@@ -76,14 +77,14 @@ export default function PartnerDetailPage({
 
   const vetMutation = useMutation({
     mutationFn: async (vetted: boolean) => {
-      console.log("[PartnerDetailPage] Initiating vetMutation:", {
+      logger.debug("[PartnerDetailPage] Initiating vetMutation:", {
         partnerUserId: userId,
         partnerProfileId: profile?.id,
         isVetted: vetted,
         currentStatus: profile?.isVetted,
       });
       const res = await vetPartner(userId, vetted, profile?.id);
-      console.log("[PartnerDetailPage] vetPartner API result:", res);
+      logger.debug("[PartnerDetailPage] vetPartner API result:", res);
       if (!res.ok) {
         console.error("[PartnerDetailPage] vetPartner API returned error response:", {
           status: res.status,
@@ -102,7 +103,7 @@ export default function PartnerDetailPage({
       const msg =
         res.data?.message ||
         (vetted ? "Partner approved & vetted successfully" : "Partner vetting revoked");
-      console.log("[PartnerDetailPage] Vetting status updated successfully:", msg);
+      logger.debug("[PartnerDetailPage] Vetting status updated successfully:", msg);
       toast.success(msg);
       qc.invalidateQueries({ queryKey: ["admin", "partner", userId] });
       qc.invalidateQueries({ queryKey: ["admin", "partners"] });

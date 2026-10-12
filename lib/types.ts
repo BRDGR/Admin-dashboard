@@ -58,6 +58,7 @@ export interface AdminUser {
   isActive: boolean;
   emailVerifiedAt: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UsersResponse {
@@ -114,6 +115,13 @@ export interface PartnerRecord {
 export interface PartnersResponse {
   partners: PartnerRecord[];
   pagination: Pagination;
+}
+
+/** Returned by GET /admin/partners/:userId — a single partner detail. */
+export interface PartnerDetailResponse {
+  partner?: PartnerRecord;
+  user?: AdminUser;
+  partnerProfile?: PartnerProfile;
 }
 
 // ─── Organizations ────────────────────────────────────────────────────────────
@@ -273,6 +281,8 @@ export interface StaffMember {
   role: "admin" | "ops_admin" | "super_admin" | string;
   staffRole?: string;
   isActive: boolean;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
   emailVerifiedAt?: string | null;
   lastLoginAt?: string | null;
   createdAt: string;
@@ -658,9 +668,10 @@ export interface AdminClientRecord {
 }
 
 export interface ClientsResponse {
-  clients?: AdminClientRecord[];
-  partners?: AdminClientRecord[];
+  /** Canonical list key. Use this everywhere. */
+  clients: AdminClientRecord[];
   records?: AdminClientRecord[];
+  partners?: AdminClientRecord[];
   pagination: Pagination;
 }
 
@@ -699,4 +710,108 @@ export interface PartnerEligibilityData {
   hasSocialAccounts?: boolean;
   reasons?: string[];
 }
+
+// ─── Admin Dashboard Spec Contracts (Visibility Matrix & Image 7/8) ───────────
+
+export type PartnerTier = "Exceptional" | "Strong" | "Performing" | "Needs Attention" | "Critical";
+
+export interface AdminPartnerLeaderboardItem {
+  partnerId: string;
+  name: string;
+  avatarUrl?: string;
+  score: number; // 0–100
+  tier: PartnerTier;
+  multiplier: number; // e.g. 1.25x, 1.10x, 1.00x, 0.85x, 0.70x
+  attainments: {
+    conversionRate: number; // %
+    volume: number; // count
+    retentionRate: number; // %
+    complianceScore: number; // %
+  };
+  sparkline: number[]; // 7 data points for sparkline rendering
+  status?: "active" | "flagged" | "pip" | "probation";
+  consecutiveFlaggedWeeks?: number;
+}
+
+export interface AdminPayoutApprovalTierBreakdown {
+  tier: PartnerTier;
+  partnerCount: number;
+  multiplier: number;
+  rawPoolShareCents: number;
+  finalPayoutCents: number;
+}
+
+export interface AdminPayoutApprovalPayload {
+  campaignId: string;
+  campaignName: string;
+  budgetCents: number; // e.g. 2,000,000 ($20,000)
+  reserveCents: number; // 10% -> 200,000 ($2,000)
+  bonusCents: number; // 5% -> 100,000 ($1,000)
+  holdbackCents: number; // 10% -> 200,000 ($2,000)
+  poolCents: number; // e.g. 1,700,000 ($17,000)
+  totalPayoutsCents: number; // ∑ Payouts
+  invariantPassed: boolean; // ∑ Payouts === poolCents
+  tierBreakdown: AdminPayoutApprovalTierBreakdown[];
+  normalizedPartnersCount: number;
+  calculationMethod: "Hamilton_Largest_Remainder";
+}
+
+export interface CampaignConfigVersionDTO {
+  configVersion: string; // e.g. "v2.4.1"
+  brokerWeights: {
+    cpa: number; // 15
+    retention: number; // 15
+    volume: number; // 25
+    compliance: number; // 45
+  };
+  propFirmWeights: {
+    cpa: number; // 15
+    retention: number; // 20
+    volume: number; // 15
+    compliance: number; // 50
+  };
+  attainmentCapPct: number; // 120%
+  reservePct: number; // 10%
+  bonusPct: number; // 5%
+  holdbackPct: number; // 10-15% (e.g. 12%)
+  updatedAt?: string;
+  updatedBy?: string;
+  changeNote?: string;
+}
+
+export type CommercialEventType = "FTD" | "Qualified_Trader" | "Demo_Signup" | "Volume_Tier_Achieved";
+
+export interface CommercialValidationEvent {
+  id: string;
+  clientId: string;
+  clientName: string;
+  partnerId: string;
+  partnerName: string;
+  campaignId?: string;
+  campaignName?: string;
+  eventType: CommercialEventType;
+  amountMinor: number;
+  currency: string;
+  occurredAt: string;
+  ageHours: number;
+  status: "pending" | "approved" | "rejected" | "reversed";
+  rejectionReason?: string;
+  reversalTxId?: string;
+  ipAddress?: string;
+  fraudRiskScore?: number; // 0-100
+  metadata?: Record<string, unknown>;
+}
+
+export interface FraudAnomalyFlag {
+  id: string;
+  type: "flagged_clicks" | "bot_cluster" | "duplicate_ip" | "cr_spike";
+  severity: "low" | "medium" | "high" | "critical";
+  description: string;
+  count: number;
+  partnerId: string;
+  partnerName: string;
+  detectedAt: string;
+  status: "investigating" | "confirmed_fraud" | "dismissed";
+}
+
 

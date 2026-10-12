@@ -247,7 +247,7 @@ export default function PendingChangesPage() {
               }
               label={change.status === "pending" ? "Review" : "View"}
               onClick={() => {
-                console.log("[MakerChecker] Selected change for review/view:", change);
+                logger.debug("[MakerChecker] Selected change for review/view:", change);
                 setSelectedChange(change);
               }}
               variant={change.status === "pending" ? "primary" : "outline"}
@@ -302,7 +302,7 @@ export default function PendingChangesPage() {
             <button
               key={st}
               onClick={() => {
-                console.log("[MakerChecker:Filter] Tab switched to:", st);
+                logger.debug("[MakerChecker:Filter] Tab switched to:", st);
                 setStatusFilter(st);
                 setPage(1);
               }}
@@ -351,7 +351,7 @@ export default function PendingChangesPage() {
         change={selectedChange}
         onClose={() => setSelectedChange(null)}
         onSuccess={() => {
-          console.log("[MakerChecker] Review completed, invalidating & refetching queue...");
+          logger.debug("[MakerChecker] Review completed, invalidating & refetching queue...");
           refetch();
         }}
       />

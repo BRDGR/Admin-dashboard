@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Eye, Copy, ExternalLink, Plus, SlidersHorizontal, UserPlus, Trash2, AlertTriangle } from "lucide-react";
@@ -49,7 +49,16 @@ export default function UsersPage() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  const { data, isLoading } = useUsers(page, pageSize);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { data, isLoading } = useUsers(page, pageSize, debouncedSearch);
   const { mutateAsync: deletePartnerMutate } = useDeletePartner();
   const { mutateAsync: deleteClientMutate } = useDeleteClient();
 

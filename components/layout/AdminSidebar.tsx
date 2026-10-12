@@ -82,8 +82,16 @@ export function AdminSidebar() {
       {/* Admin profile + logout */}
       <div className="px-3 py-3 border-t border-slate-200/60">
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0364FF]/20 to-indigo-100 flex items-center justify-center text-[#0364FF] font-bold text-xs shrink-0">
-            {admin?.firstName?.[0] ?? "A"}
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0364FF]/20 to-indigo-100 flex items-center justify-center text-[#0364FF] font-bold text-xs shrink-0 overflow-hidden">
+            {admin?.imageUrl || admin?.avatarUrl ? (
+              <img
+                src={(admin.imageUrl || admin.avatarUrl)!}
+                alt={admin.firstName ?? "Admin"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              admin?.firstName?.[0] ?? "A"
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-semibold text-slate-900 truncate">

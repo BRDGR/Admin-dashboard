@@ -5,3 +5,8 @@ export { CampaignPerformanceModal } from "./CampaignPerformanceModal";
 export { CampaignQueueTab } from "./CampaignQueueTab";
 export { Campaign360Tab } from "./Campaign360Tab";
 export { CampaignPoliciesTab } from "./CampaignPoliciesTab";
+export { PartnerLeaderboardTable } from "./PartnerLeaderboardTable";
+export { ValidationWorkQueueTable } from "./ValidationWorkQueueTable";
+export { PayoutApprovalModal } from "./PayoutApprovalModal";
+export { CampaignScoringConfigModal } from "./CampaignScoringConfigModal";
+export { CampaignPayoutAuditTab } from "./CampaignPayoutAuditTab";

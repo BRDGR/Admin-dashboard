@@ -9,13 +9,14 @@ import { useOrganizations } from "@/lib/hooks/useOrganizations";
 interface InviteByopModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultOrgId?: string;
 }
 
 const fieldCls =
   "w-full text-xs bg-slate-50 focus:bg-white border border-slate-200/80 rounded-xl px-3.5 h-10 text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all";
 
-export function InviteByopModal({ isOpen, onClose }: InviteByopModalProps) {
-  const [clientOrgId, setClientOrgId] = useState("");
+export function InviteByopModal({ isOpen, onClose, defaultOrgId }: InviteByopModalProps) {
+  const [clientOrgId, setClientOrgId] = useState(defaultOrgId || "");
   const [partnerEmail, setPartnerEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

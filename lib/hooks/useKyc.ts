@@ -3,6 +3,7 @@ import {
   listKyc, listPartnerKycRecords,
   getPartnerKycRecord, reviewPartnerKyc,
   getOrganizationKyc, reviewOrgKyc,
+  sendOrganizationKycReminder, sendPartnerKycReminder,
 } from "@/lib/api";
 import type { KycListResponse, PartnerKycListResponse, KycReviewPayload } from "@/lib/types";
 import { toast } from "sonner";
@@ -94,6 +95,38 @@ export function useReviewOrgKyc() {
     onSuccess: () => {
       toast.success("Organization KYC decision saved");
       qc.invalidateQueries({ queryKey: ["admin", "kyc"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSendOrgKycReminder() {
+  return useMutation({
+    mutationFn: async (orgId: string) => {
+      const res = await sendOrganizationKycReminder(orgId);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to send KYC reminder to organization");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("KYC reminder notification sent to organization");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSendPartnerKycReminder() {
+  return useMutation({
+    mutationFn: async (partnerUserId: string) => {
+      const res = await sendPartnerKycReminder(partnerUserId);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to send KYC reminder to partner");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("KYC reminder notification sent to partner");
     },
     onError: (err: Error) => toast.error(err.message),
   });

@@ -41,7 +41,7 @@ export async function reviewOrgKyc(
 ): Promise<ApiResponse<ApiEnvelope<unknown>>> {
   logger.debug(`[KYC] reviewOrgKyc(${kycRecordId}) sending payload:`, payload, "orgId:", orgId);
 
-  // Candidate 1: PATCH /admin/kyc/:kycRecordId/review
+  // Candidate 1: PATCH /admin/kyc/:kycRecordId/review (Apidog ID 44711839)
   let res = await apiRequest<ApiEnvelope<unknown>>(`/admin/kyc/${kycRecordId}/review`, {
     method: "PATCH",
     body: payload,
@@ -78,6 +78,8 @@ export async function reviewOrgKyc(
   return res;
 }
 
+export const reviewOrganizationKyc = reviewOrgKyc;
+
 // ─── KYC (Partners) ───────────────────────────────────────────────────────────
 
 export async function listPartnerKycRecords(
@@ -109,3 +111,24 @@ export async function reviewPartnerKyc(
   logger.debug(`[KYC] reviewPartnerKyc(${kycRecordId}) response:`, res);
   return res;
 }
+
+// ─── KYC Reminders (Apidog Update) ──────────────────────────────────────────
+
+export async function sendOrganizationKycReminder(
+  orgId: string
+): Promise<ApiResponse<ApiEnvelope<unknown>>> {
+  logger.debug(`[KYC] sendOrganizationKycReminder(${orgId})`);
+  return apiRequest<ApiEnvelope<unknown>>(`/admin/kyc/organizations/${orgId}/reminder`, {
+    method: "POST",
+  });
+}
+
+export async function sendPartnerKycReminder(
+  partnerUserId: string
+): Promise<ApiResponse<ApiEnvelope<unknown>>> {
+  logger.debug(`[KYC] sendPartnerKycReminder(${partnerUserId})`);
+  return apiRequest<ApiEnvelope<unknown>>(`/admin/partners/kyc/${partnerUserId}/reminder`, {
+    method: "POST",
+  });
+}
+

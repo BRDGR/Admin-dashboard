@@ -13,10 +13,12 @@ import {
   Globe,
   Copy,
   Check,
+  Bell,
 } from "lucide-react";
 import { StatusBadge, Button } from "@/components/ui";
 import { getKycRecord } from "@/lib/api/admin.api";
 import { getOrganization } from "@/lib/api/organizations.api";
+import { useSendOrgKycReminder } from "@/lib/hooks/useKyc";
 import type { KycRecord, Organization } from "@/lib/types";
 
 export interface OrgKycDetailDrawerProps {
@@ -31,6 +33,7 @@ export function OrgKycDetailDrawer({
   onOpenDecision,
 }: OrgKycDetailDrawerProps) {
   const [copiedRef, setCopiedRef] = useState(false);
+  const { mutate: sendReminder, isPending: isSendingReminder } = useSendOrgKycReminder();
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "kyc", kycId],
@@ -272,14 +275,27 @@ export function OrgKycDetailDrawer({
         </div>
 
         {/* Drawer Action Bar */}
-        {kyc && kyc.status === "pending" && onOpenDecision && (
-          <div className="p-4 border-t border-slate-100 bg-white">
-            <Button
-              className="w-full text-xs font-semibold"
-              onClick={() => onOpenDecision(kyc.id, kyc.orgId, orgName)}
-            >
-              <ShieldCheck className="w-4 h-4 mr-1.5" /> Make Review Decision
-            </Button>
+        {kyc && (
+          <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-2">
+            {kyc.orgId && (
+              <Button
+                variant="outline"
+                className="flex-1 text-xs font-semibold border-slate-200"
+                onClick={() => sendReminder(kyc.orgId)}
+                disabled={isSendingReminder}
+              >
+                <Bell className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                {isSendingReminder ? "Sending..." : "Send Reminder"}
+              </Button>
+            )}
+            {kyc.status === "pending" && onOpenDecision && (
+              <Button
+                className="flex-1 text-xs font-semibold"
+                onClick={() => onOpenDecision(kyc.id, kyc.orgId, orgName)}
+              >
+                <ShieldCheck className="w-4 h-4 mr-1.5" /> Make Review Decision
+              </Button>
+            )}
           </div>
         )}
       </div>

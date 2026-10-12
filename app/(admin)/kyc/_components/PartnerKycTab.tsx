@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Eye, ShieldCheck } from "lucide-react";
+import { Eye, ShieldCheck, Bell } from "lucide-react";
 import {
   DataTable,
   StatusBadge,
@@ -10,7 +10,7 @@ import {
   UserAvatarCell,
   type Column,
 } from "@/components/ui";
-import { usePartnerKycList, useReviewPartnerKyc } from "@/lib/hooks/useKyc";
+import { usePartnerKycList, useReviewPartnerKyc, useSendPartnerKycReminder } from "@/lib/hooks/useKyc";
 import type { PartnerKycRecord } from "@/lib/types";
 import { PartnerKycDetailDrawer } from "./PartnerKycDetailDrawer";
 import { KycDecisionModal } from "./KycDecisionModal";
@@ -23,6 +23,8 @@ export function PartnerKycTab() {
 
   const { data, isLoading } = usePartnerKycList(page, pageSize);
   const { mutate: review, isPending } = useReviewPartnerKyc();
+  const { mutate: sendReminder, isPending: isSendingReminder } = useSendPartnerKycReminder();
+  const [sendingPartnerId, setSendingPartnerId] = useState<string | null>(null);
   const [reviewModal, setReviewModal] = useState<{ id: string; name: string } | null>(null);
   const [detailRecord, setDetailRecord] = useState<PartnerKycRecord | null>(null);
 
@@ -78,6 +80,21 @@ export function PartnerKycTab() {
             label="View"
             onClick={() => setDetailRecord(row)}
           />
+          {row.status !== "verified" && row.partnerUser?.id && (
+            <TableActionButton
+              icon={<Bell className="w-3.5 h-3.5 text-amber-600" />}
+              label={sendingPartnerId === row.partnerUser.id ? "Sending..." : "Reminder"}
+              onClick={() => {
+                const uid = row.partnerUser?.id;
+                if (!uid) return;
+                setSendingPartnerId(uid);
+                sendReminder(uid, {
+                  onSettled: () => setSendingPartnerId(null),
+                });
+              }}
+              disabled={isSendingReminder && sendingPartnerId === row.partnerUser.id}
+            />
+          )}
           {row.status === "pending" && (
             <TableActionButton
               icon={<ShieldCheck className="w-3.5 h-3.5 text-[#0364FF]" />}

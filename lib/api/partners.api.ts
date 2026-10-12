@@ -30,6 +30,40 @@ export function listNormalPartners(
   return apiRequest(`/admin/partners/normal?page=${page}&limit=${limit}`);
 }
 
+/** Branded alias for BRDGR Partners (formerly Normal Partners) */
+export function listBrdgrPartners(
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<ApiEnvelope<PartnersResponse>>> {
+  return listNormalPartners(page, limit);
+}
+
+/**
+ * Fetch unmatched partners — verified partners currently not attached to an active partnership.
+ * Queries /admin/partners/unmatched or falls back to /admin/partners with filtering.
+ */
+export async function listUnmatchedPartners(
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<ApiEnvelope<PartnersResponse>>> {
+  let res = await apiRequest<ApiEnvelope<PartnersResponse>>(
+    `/admin/partners/unmatched?page=${page}&limit=${limit}`,
+    { silent404: true }
+  );
+  if (res.status === 404) {
+    res = await apiRequest<ApiEnvelope<PartnersResponse>>(
+      `/admin/partners?status=unmatched&page=${page}&limit=${limit}`,
+      { silent404: true }
+    );
+  }
+  if (res.status === 404) {
+    res = await apiRequest<ApiEnvelope<PartnersResponse>>(
+      `/admin/partners?page=${page}&limit=${limit}`
+    );
+  }
+  return res;
+}
+
 export function listByopPartners(
   page = 1,
   limit = 20

@@ -31,8 +31,27 @@ export function AdminTopBar({ title, subtitle }: AdminTopBarProps) {
           <input placeholder="Search..." className="flex-1 text-xs bg-transparent outline-none text-slate-800 placeholder:text-slate-400" />
         </div>
         <AdminNotificationCenter />
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0364FF]/20 to-indigo-100 border-2 border-white shadow-sm flex items-center justify-center text-[#0364FF] font-bold text-sm select-none">
-          {admin?.firstName?.[0] ?? "A"}
+        <div className="flex items-center gap-2 p-1 pr-3 rounded-full bg-white border border-slate-200/80 shadow-2xs select-none">
+          <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-[#0364FF]/20 to-indigo-100 border border-slate-200/90 shadow-2xs flex items-center justify-center text-[#0364FF] font-bold text-xs overflow-hidden shrink-0">
+            {admin?.imageUrl || admin?.avatarUrl ? (
+              <img
+                src={(admin.imageUrl || admin.avatarUrl)!}
+                alt={admin.firstName ?? "Admin"}
+                className="w-full h-full object-cover object-center"
+              />
+            ) : (
+              admin?.firstName?.[0] ?? "A"
+            )}
+            <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1.5 ring-white" />
+          </div>
+          <div className="flex flex-col text-left leading-tight">
+            <span className="text-xs font-bold text-slate-800 truncate max-w-[110px]">
+              {admin?.firstName ?? "Admin"}
+            </span>
+            <span className="text-[10px] font-semibold text-slate-400 capitalize">
+              {admin?.role ? admin.role.replace(/_/g, " ") : "Admin"}
+            </span>
+          </div>
         </div>
       </div>
     </header>
