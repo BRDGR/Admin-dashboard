@@ -31,6 +31,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
+.env*
 
 # markdown files
 *.md
@@ -42,3 +43,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 config.bat
+
