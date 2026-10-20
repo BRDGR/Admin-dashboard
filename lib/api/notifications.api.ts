@@ -82,8 +82,9 @@ export async function fetchNotifications(params?: {
     if (params?.type) query.set("type", params.type);
 
     const qs = query.toString();
+    const endpoint = qs ? `/notifications?${qs}` : "/notifications";
     const res = await apiRequest<ApiEnvelope<NotificationsResponse>>(
-      `/notifications${qs ? `?${qs}` : ""}`,
+      endpoint,
       { silent404: true, silent: true, timeoutMs: 8000 }
     );
 

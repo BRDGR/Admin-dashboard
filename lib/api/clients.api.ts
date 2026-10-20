@@ -42,6 +42,16 @@ function findOrgs(orgRecords: any[], userId?: string, email?: string): AdminClie
     .map(mapOrg);
 }
 
+// Helper to pick the organizations list when the API didn't provide one:
+// prefer orgs matched by owner, otherwise wrap the primary org, otherwise empty.
+function fallbackOrganizations(
+  matchedOrgs: AdminClientOrganization[],
+  primaryOrg: AdminClientOrganization | null
+): AdminClientOrganization[] {
+  if (matchedOrgs.length) return matchedOrgs;
+  return primaryOrg ? [primaryOrg] : [];
+}
+
 // ─── Clients Admin ────────────────────────────────────────────────────────────
 
 export async function listClients(
@@ -81,7 +91,7 @@ export async function listClients(
       const primaryOrg = item.organization || item.organizations?.[0] || matchedOrgs[0] || null;
       const allOrgs = item.organizations?.length
         ? item.organizations
-        : (matchedOrgs.length ? matchedOrgs : (primaryOrg ? [primaryOrg] : []));
+        : fallbackOrganizations(matchedOrgs, primaryOrg);
 
       return {
         id: item.user?.id || item.id || `client-${idx}`,
@@ -159,7 +169,8 @@ export async function listClients(
         },
       } as any,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    logger.error("[Clients API] listClients — /admins/users fallback failed:", err);
     return res;
   }
 }
@@ -193,7 +204,7 @@ export async function getClient(
             id: user.id || clientId,
             user,
             organization: org,
-            organizations: raw.organizations || (matchedOrgs.length ? matchedOrgs : (org ? [org] : [])),
+            organizations: raw.organizations || fallbackOrganizations(matchedOrgs, org),
             partnerProfile: raw.partnerProfile || null,
             createdAt: user.createdAt || new Date().toISOString(),
           },

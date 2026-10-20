@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
-import { getToken, setToken, clearToken } from "@/lib/auth/storage";
+import { getToken, setToken as saveToken, clearToken } from "@/lib/auth/storage";
 import type { StaffMember, ApiEnvelope } from "@/lib/types";
 
 interface LoginPayload { email: string; password: string; }
@@ -27,7 +27,7 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<StaffMember | null>(null);
-  const [token, setTokenState] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,28 +36,29 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = getToken();
     if (stored) {
-      setTokenState(stored);
+      setToken(stored);
       // Fetch profile to restore admin object
       apiRequest<ApiEnvelope<{ user: StaffMember }>>("/admins/profile", { token: stored })
         .then((res) => {
-          const user =
-            res.data?.data?.user ??
-            (res.data?.data as any)?.admin ??
-            (res.data as any)?.user ??
-            (res.data as any)?.admin ??
-            ((res.data?.data as any)?.id ? (res.data?.data as any) : null);
+          const rawData = res.data?.data as unknown as Record<string, unknown> | undefined;
+          const rawEnvelope = res.data as unknown as Record<string, unknown> | undefined;
+          const user = (res.data?.data?.user ??
+            rawData?.admin ??
+            rawEnvelope?.user ??
+            rawEnvelope?.admin ??
+            (rawData?.id ? rawData : null)) as StaffMember | null;
 
           if (user) {
             setAdmin(user);
           } else if (!res.ok) {
             // Only clear token if server explicitly rejected or responded with an error
             clearToken();
-            setTokenState(null);
+            setToken(null);
           }
         })
         .catch(() => {
           clearToken();
-          setTokenState(null);
+          setToken(null);
         })
         .finally(() => setIsInitializing(false));
     } else {
@@ -78,13 +79,16 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         throw new Error(res.data?.message || res.error || "Login failed");
       }
 
-      const rawData = res.data.data;
-      const user = rawData?.user ?? (rawData as any)?.admin;
-      const tokens = rawData?.tokens ?? (rawData as any)?.token;
+      const rawData = res.data.data as (BackendLoginResponse & Record<string, unknown>) | undefined;
+      const user = (rawData?.user ?? rawData?.admin) as StaffMember | undefined;
+      const tokens = rawData?.tokens ?? rawData?.token;
+      const rawTokensObj = typeof tokens === "object" && tokens !== null ? (tokens as Record<string, unknown>) : null;
       const accessToken =
         typeof tokens === "string"
           ? tokens
-          : tokens?.accessToken ?? (tokens as any)?.token ?? (tokens as any)?.access_token;
+          : (tokens as { accessToken?: string } | undefined)?.accessToken ??
+            (rawTokensObj?.token as string | undefined) ??
+            (rawTokensObj?.access_token as string | undefined);
 
       if (!accessToken || !user) {
         throw new Error("Invalid credentials or server response format.");
@@ -96,8 +100,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Access denied. Admin credentials required.");
       }
 
+      saveToken(accessToken);
       setToken(accessToken);
-      setTokenState(accessToken);
       setAdmin(user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
@@ -110,7 +114,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearToken();
-    setTokenState(null);
+    setToken(null);
     setAdmin(null);
   }, []);
 

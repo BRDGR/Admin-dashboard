@@ -200,7 +200,7 @@ function PolicyEditor({
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                minConversionRate: parseFloat(e.target.value) || 0,
+                minConversionRate: Number.parseFloat(e.target.value) || 0,
               }))
             }
           />
@@ -218,7 +218,7 @@ function PolicyEditor({
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                maxCpa: parseFloat(e.target.value) || undefined,
+                maxCpa: Number.parseFloat(e.target.value) || undefined,
               }))
             }
           />
@@ -236,7 +236,7 @@ function PolicyEditor({
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                minWeeklyConversions: parseInt(e.target.value) || undefined,
+                minWeeklyConversions: Number.parseInt(e.target.value, 10) || undefined,
               }))
             }
           />
@@ -253,7 +253,7 @@ function PolicyEditor({
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                evaluationFrequencyDays: parseInt(e.target.value) || 7,
+                evaluationFrequencyDays: Number.parseInt(e.target.value, 10) || 7,
               }))
             }
           />
@@ -387,15 +387,16 @@ export function CampaignPoliciesTab() {
     if (!pipPartner) return;
     try {
       setIsDispatching(true);
-      await dispatchPipNotice(pipPartner.partnerId, {
+      const res = await dispatchPipNotice(pipPartner.partnerId, {
         reason: pipReason,
-        durationDays: parseInt(pipDuration) || 14,
+        durationDays: Number.parseInt(pipDuration, 10) || 14,
         targetMetrics: { minConversionRate: 2.0, minRetentionRate: 50 },
       });
+      if (!res.ok) throw new Error(res.error ?? "Failed to dispatch PIP notice");
       toast.success(`Formal PIP notice dispatched to partner ${pipPartner.name}`);
       setPipPartner(null);
-    } catch {
-      toast.error("Failed to dispatch PIP notice");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to dispatch PIP notice");
     } finally {
       setIsDispatching(false);
     }

@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import {
   ArrowLeft, Building2, Mail, Globe, MapPin,
   ShieldCheck, Clock, Users, FileText, CheckCircle,
@@ -228,12 +228,12 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ o
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">Submitted</span>
-                  <span className="text-xs text-slate-500">{format(new Date(kyc.submittedAt), "MMM d, yyyy")}</span>
+                  <span className="text-xs text-slate-500">{safeFormatDate(kyc.submittedAt)}</span>
                 </div>
                 {kyc.decidedAt && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">Decided</span>
-                    <span className="text-xs text-slate-500">{format(new Date(kyc.decidedAt), "MMM d, yyyy")}</span>
+                    <span className="text-xs text-slate-500">{safeFormatDate(kyc.decidedAt)}</span>
                   </div>
                 )}
                 {kyc.decisionNotes && (
@@ -259,16 +259,16 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ o
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">Created</span>
-                <span className="text-xs text-slate-600">{format(new Date(org.createdAt), "MMM d, yyyy")}</span>
+                <span className="text-xs text-slate-600">{safeFormatDate(org.createdAt)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">Last Updated</span>
-                <span className="text-xs text-slate-600">{format(new Date(org.updatedAt), "MMM d, yyyy")}</span>
+                <span className="text-xs text-slate-600">{safeFormatDate(org.updatedAt)}</span>
               </div>
               {org.closedAt && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500">Closed</span>
-                  <span className="text-xs text-red-500">{format(new Date(org.closedAt), "MMM d, yyyy")}</span>
+                  <span className="text-xs text-red-500">{safeFormatDate(org.closedAt)}</span>
                 </div>
               )}
             </div>

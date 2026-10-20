@@ -20,7 +20,7 @@ export function listPendingChanges(params?: {
   if (params?.status) query.set("status", params.status);
 
   const qs = query.toString();
-  const url = `/admin/pending-changes${qs ? `?${qs}` : ""}`;
+  const url = qs ? `/admin/pending-changes?${qs}` : "/admin/pending-changes";
   logger.debug(`[pending-changes.api] GET ${url}`, { params });
   return apiRequest(url);
 }

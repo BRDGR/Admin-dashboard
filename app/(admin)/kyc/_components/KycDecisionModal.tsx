@@ -41,7 +41,8 @@ export function KycDecisionModal({
     if (decisionType === "approve") {
       await onSubmit("verified", customNotes || undefined);
     } else if (decisionType === "action_required") {
-      const fullNote = `Action Required: ${selectedReason}${customNotes ? ` — ${customNotes}` : ""}`;
+      const noteSuffix = customNotes ? ` — ${customNotes}` : "";
+      const fullNote = `Action Required: ${selectedReason}${noteSuffix}`;
       await onSubmit("failed", fullNote);
     } else {
       const fullNote = `Rejected: ${customNotes || "Compliance verification criteria not met"}`;

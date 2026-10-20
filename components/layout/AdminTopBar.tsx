@@ -9,10 +9,16 @@ interface AdminTopBarProps {
   subtitle?: string;
 }
 
-export function AdminTopBar({ title, subtitle }: AdminTopBarProps) {
+function getGreeting(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+export function AdminTopBar({ title, subtitle }: Readonly<AdminTopBarProps>) {
   const { admin } = useAdminAuth();
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = getGreeting(hour);
   const name = admin?.firstName ?? "Admin";
 
   const displayTitle = title ?? `${greeting}, ${name}`;

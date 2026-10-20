@@ -27,6 +27,8 @@ import {
   MOCK_COMMERCIAL_VALIDATION_EVENTS,
   MOCK_FRAUD_ANOMALY_FLAGS,
 } from "@/lib/mock/admin-campaigns.mock";
+import { MOCK_FALLBACKS_ENABLED } from "@/lib/mock/config";
+import { logger } from "@/lib/logger";
 
 
 // ─── Admin Campaigns Pipeline ─────────────────────────────────────────────────
@@ -64,6 +66,12 @@ export async function reviewCampaign(
   );
 }
 
+/** Appends `?query` to a path only when the query string is non-empty. */
+function withQuery(path: string, query: URLSearchParams): string {
+  const qs = query.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 export async function getCampaignMatches(
   campaignId: string,
   params?: { minMatchScore?: number; limit?: number }
@@ -72,8 +80,7 @@ export async function getCampaignMatches(
   if (params?.minMatchScore !== undefined) query.set("minMatchScore", String(params.minMatchScore));
   if (params?.limit) query.set("limit", String(params.limit));
 
-  const qs = query.toString();
-  const endpoint = `/admin/campaigns/${campaignId}/match${qs ? `?${qs}` : ""}`;
+  const endpoint = withQuery(`/admin/campaigns/${campaignId}/match`, query);
 
   return apiRequest<ApiEnvelope<CampaignMatchResponse>>(endpoint);
 }
@@ -97,8 +104,7 @@ export async function getCampaignAssignments(
   if (params?.page) query.set("page", String(params.page));
   if (params?.limit) query.set("limit", String(params.limit));
 
-  const qs = query.toString();
-  const endpoint = `/admin/campaigns/${campaignId}/assignments${qs ? `?${qs}` : ""}`;
+  const endpoint = withQuery(`/admin/campaigns/${campaignId}/assignments`, query);
 
   return apiRequest<ApiEnvelope<CampaignAssignmentsResponse>>(endpoint);
 }
@@ -122,8 +128,7 @@ export async function getCampaign360Overview(params?: {
   if (params?.period) query.set("period", params.period);
   if (params?.status) query.set("status", params.status);
 
-  const qs = query.toString();
-  const endpoint = `/admin/campaigns/overview/360${qs ? `?${qs}` : ""}`;
+  const endpoint = withQuery("/admin/campaigns/overview/360", query);
 
   return apiRequest<ApiEnvelope<Campaign360OverviewResponse>>(endpoint);
 }
@@ -136,8 +141,7 @@ export async function getCampaignPerformance(
   if (params?.period) query.set("period", params.period);
   if (params?.breakdown) query.set("breakdown", params.breakdown);
 
-  const qs = query.toString();
-  const endpoint = `/admin/campaigns/${campaignId}/performance${qs ? `?${qs}` : ""}`;
+  const endpoint = withQuery(`/admin/campaigns/${campaignId}/performance`, query);
 
   return apiRequest<ApiEnvelope<CampaignPerformanceResponse>>(endpoint);
 }
@@ -187,6 +191,30 @@ export async function getPartnerCampaignPerformance(
   );
 }
 
+// ─── Dev-only mock fallback (read endpoints only) ────────────────────────────
+
+/**
+ * Returns the real response unless it is unusable AND mock fallbacks are
+ * explicitly enabled for local development (see `lib/mock/config.ts`).
+ * In production the real response — including errors — is always returned,
+ * so the UI shows a proper error state instead of fixture data.
+ */
+function withDevMockFallback<T>(
+  res: ApiResponse<ApiEnvelope<T>>,
+  hasData: boolean,
+  label: string,
+  mock: () => T
+): ApiResponse<ApiEnvelope<T>> {
+  if (hasData || !MOCK_FALLBACKS_ENABLED) return res;
+  logger.warn(`[Campaigns API] ${label} unavailable (${res.status}) — serving MOCK data (dev only)`);
+  return {
+    ok: true,
+    status: 200,
+    error: null,
+    data: { error: false, message: `[MOCK] ${label}`, data: mock() },
+  };
+}
+
 // ─── Partner Leaderboard API ──────────────────────────────────────────────────
 
 export async function getPartnerLeaderboard(
@@ -195,25 +223,12 @@ export async function getPartnerLeaderboard(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ partners: AdminPartnerLeaderboardItem[]; total: number }>>(
     `/admin/campaigns/leaderboard${query}`,
-    { silent404: true }
+    { silent404: MOCK_FALLBACKS_ENABLED }
   );
-  if (res.ok && res.data?.data?.partners) {
-    return res;
-  }
-  // Graceful fallback to the canonical 300 partners specification fixture
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Success",
-      data: {
-        partners: MOCK_300_PARTNERS,
-        total: MOCK_300_PARTNERS.length,
-      },
-    },
-  };
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.partners), "Partner leaderboard", () => ({
+    partners: MOCK_300_PARTNERS,
+    total: MOCK_300_PARTNERS.length,
+  }));
 }
 
 // ─── Commercial Validation Work Queue API ─────────────────────────────────────
@@ -225,91 +240,47 @@ export async function getValidationWorkQueue(params?: {
   const query = new URLSearchParams();
   if (params?.status) query.set("status", params.status);
   if (params?.clientId) query.set("clientId", params.clientId);
-  const qs = query.toString();
 
   const res = await apiRequest<ApiEnvelope<{ events: CommercialValidationEvent[]; total: number }>>(
-    `/admin/campaigns/validation-queue${qs ? `?${qs}` : ""}`,
-    { silent404: true }
+    withQuery("/admin/campaigns/validation-queue", query),
+    { silent404: MOCK_FALLBACKS_ENABLED }
   );
-  if (res.ok && res.data?.data?.events) {
-    return res;
-  }
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Success",
-      data: {
-        events: MOCK_COMMERCIAL_VALIDATION_EVENTS,
-        total: MOCK_COMMERCIAL_VALIDATION_EVENTS.length,
-      },
-    },
-  };
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.events), "Validation work queue", () => ({
+    events: MOCK_COMMERCIAL_VALIDATION_EVENTS,
+    total: MOCK_COMMERCIAL_VALIDATION_EVENTS.length,
+  }));
 }
+
+// Mutations below return the real backend response. They must never fake
+// success: a failed approve/reject/reverse/payout has to surface as an error.
 
 export async function approveCommercialEvent(
   eventId: string
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; eventId: string; status: "approved" }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "approved" }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "approved" }>>(
     `/admin/campaigns/validation-queue/${eventId}/approve`,
-    { method: "POST", silent404: true }
+    { method: "POST" }
   );
-  if (res.ok) return res;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Event approved successfully",
-      data: { success: true, eventId, status: "approved" },
-    },
-  };
 }
 
 export async function rejectCommercialEvent(
   eventId: string,
   reason: string
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; eventId: string; status: "rejected"; reason: string }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "rejected"; reason: string }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "rejected"; reason: string }>>(
     `/admin/campaigns/validation-queue/${eventId}/reject`,
-    { method: "POST", body: { reason }, silent404: true }
+    { method: "POST", body: { reason } }
   );
-  if (res.ok) return res;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Event rejected",
-      data: { success: true, eventId, status: "rejected", reason },
-    },
-  };
 }
 
 export async function reverseCommercialEvent(
   eventId: string,
   reason: string
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; eventId: string; status: "reversed"; reversalTxId: string }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "reversed"; reversalTxId: string }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; eventId: string; status: "reversed"; reversalTxId: string }>>(
     `/admin/campaigns/validation-queue/${eventId}/reverse`,
-    { method: "POST", body: { reason }, silent404: true }
+    { method: "POST", body: { reason } }
   );
-  if (res.ok) return res;
-  const reversalTxId = `REV-${eventId.replace(/[^0-9]/g, "") || Date.now()}-COMPENSATING`;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Event reversed with compensating transaction",
-      data: { success: true, eventId, status: "reversed", reversalTxId },
-    },
-  };
 }
 
 // ─── Payout Approvals & Hamilton Normalization API ────────────────────────────
@@ -320,47 +291,20 @@ export async function getPayoutApprovalSummary(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ payoutSummary: AdminPayoutApprovalPayload }>>(
     `/admin/campaigns/payout-approval${query}`,
-    { silent404: true }
+    { silent404: MOCK_FALLBACKS_ENABLED }
   );
-  if (res.ok && res.data?.data?.payoutSummary) {
-    return res;
-  }
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Success",
-      data: {
-        payoutSummary: MOCK_PAYOUT_APPROVAL_PAYLOAD,
-      },
-    },
-  };
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.payoutSummary), "Payout approval summary", () => ({
+    payoutSummary: MOCK_PAYOUT_APPROVAL_PAYLOAD,
+  }));
 }
 
 export async function approvePayoutBatch(
   campaignId: string
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; campaignId: string; batchId: string }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; campaignId: string; batchId: string }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; campaignId: string; batchId: string }>>(
     `/admin/campaigns/${campaignId}/payout-approval/execute`,
-    { method: "POST", silent404: true }
+    { method: "POST" }
   );
-  if (res.ok) return res;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Payout batch approved and queued for banking settlement",
-      data: {
-        success: true,
-        campaignId,
-        batchId: `BATCH-WIRE-${Date.now()}`,
-      },
-    },
-  };
 }
 
 // ─── Scoring Config & Audit Versioning API ────────────────────────────────────
@@ -371,44 +315,21 @@ export async function getCampaignScoringConfig(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ activeConfig: CampaignConfigVersionDTO; history: CampaignConfigVersionDTO[] }>>(
     `/admin/campaigns/scoring-config${query}`,
-    { silent404: true }
+    { silent404: MOCK_FALLBACKS_ENABLED }
   );
-  if (res.ok && res.data?.data?.activeConfig) {
-    return res;
-  }
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Success",
-      data: {
-        activeConfig: MOCK_SCORING_CONFIG_VERSIONS[0],
-        history: MOCK_SCORING_CONFIG_VERSIONS,
-      },
-    },
-  };
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.activeConfig), "Scoring config", () => ({
+    activeConfig: MOCK_SCORING_CONFIG_VERSIONS[0],
+    history: MOCK_SCORING_CONFIG_VERSIONS,
+  }));
 }
 
 export async function updateCampaignScoringConfig(
   config: CampaignConfigVersionDTO
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; updatedConfig: CampaignConfigVersionDTO }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; updatedConfig: CampaignConfigVersionDTO }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; updatedConfig: CampaignConfigVersionDTO }>>(
     `/admin/campaigns/scoring-config`,
-    { method: "PUT", body: config, silent404: true }
+    { method: "PUT", body: config }
   );
-  if (res.ok) return res;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Scoring configuration updated",
-      data: { success: true, updatedConfig: config },
-    },
-  };
 }
 
 // ─── Fraud Anomaly Flags API ──────────────────────────────────────────────────
@@ -418,45 +339,20 @@ export async function getFraudAnomalyFlags(): Promise<
 > {
   const res = await apiRequest<ApiEnvelope<{ flags: FraudAnomalyFlag[]; total: number }>>(
     `/admin/campaigns/fraud-anomalies`,
-    { silent404: true }
+    { silent404: MOCK_FALLBACKS_ENABLED }
   );
-  if (res.ok && res.data?.data?.flags) {
-    return res;
-  }
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: "Success",
-      data: {
-        flags: MOCK_FRAUD_ANOMALY_FLAGS,
-        total: MOCK_FRAUD_ANOMALY_FLAGS.length,
-      },
-    },
-  };
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.flags), "Fraud anomaly flags", () => ({
+    flags: MOCK_FRAUD_ANOMALY_FLAGS,
+    total: MOCK_FRAUD_ANOMALY_FLAGS.length,
+  }));
 }
 
 export async function dispatchPipNotice(
   partnerId: string,
   payload: { reason: string; durationDays: number; targetMetrics: Record<string, number> }
 ): Promise<ApiResponse<ApiEnvelope<{ success: boolean; message: string }>>> {
-  const res = await apiRequest<ApiEnvelope<{ success: boolean; message: string }>>(
+  return apiRequest<ApiEnvelope<{ success: boolean; message: string }>>(
     `/admin/campaigns/partners/${partnerId}/pip-dispatch`,
-    { method: "POST", body: payload, silent404: true }
+    { method: "POST", body: payload }
   );
-  if (res.ok) return res;
-  return {
-    ok: true,
-    status: 200,
-    error: null,
-    data: {
-      error: false,
-      message: `Formal PIP notice issued to partner ${partnerId}`,
-      data: { success: true, message: `Formal PIP notice dispatched for ${payload.durationDays} days.` },
-    },
-  };
 }
-
-

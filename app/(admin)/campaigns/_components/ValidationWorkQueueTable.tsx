@@ -2,16 +2,12 @@
 
 import { useState, useMemo } from "react";
 import {
-  CheckCircle2,
-  XCircle,
   RotateCcw,
   Clock,
   Building2,
   AlertTriangle,
   ShieldCheck,
   Search,
-  Filter,
-  DollarSign,
   Info,
   Check,
   X,
@@ -22,11 +18,11 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface ValidationWorkQueueTableProps {
-  events: CommercialValidationEvent[];
-  isLoading?: boolean;
-  onApprove: (eventId: string) => Promise<void>;
-  onReject: (eventId: string, reason: string) => Promise<void>;
-  onReverse: (eventId: string, reason: string) => Promise<void>;
+  readonly events: readonly CommercialValidationEvent[];
+  readonly isLoading?: boolean;
+  readonly onApprove: (eventId: string) => Promise<void>;
+  readonly onReject: (eventId: string, reason: string) => Promise<void>;
+  readonly onReverse: (eventId: string, reason: string) => Promise<void>;
 }
 
 const REJECTION_REASONS = [
@@ -39,13 +35,32 @@ const REJECTION_REASONS = [
   "Failure to pass client KYC / verification threshold",
 ];
 
+function getFraudRiskBadgeClass(isHighRisk: boolean, isMediumRisk: boolean): string {
+  if (isHighRisk) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (isMediumRisk) return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-emerald-50 text-emerald-700 border-emerald-200";
+}
+
+function getEventStatusBadgeClass(status: string): string {
+  switch (status) {
+    case "approved":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "rejected":
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    case "reversed":
+      return "bg-purple-50 text-purple-700 border-purple-200";
+    default:
+      return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+}
+
 export function ValidationWorkQueueTable({
   events,
   isLoading,
   onApprove,
   onReject,
   onReverse,
-}: ValidationWorkQueueTableProps) {
+}: Readonly<ValidationWorkQueueTableProps>) {
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [ageFilter, setAgeFilter] = useState<string>("ALL");
   const [clientFilter, setClientFilter] = useState<string>("ALL");
@@ -92,6 +107,15 @@ export function ValidationWorkQueueTable({
     });
   }, [events, statusFilter, ageFilter, clientFilter, search]);
 
+  const handleApprove = async (eventId: string) => {
+    try {
+      await onApprove(eventId);
+      toast.success(`Approved commercial event ${eventId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to approve event");
+    }
+  };
+
   const handleConfirmReject = async () => {
     if (!rejectingEvent) return;
     try {
@@ -101,8 +125,8 @@ export function ValidationWorkQueueTable({
       toast.success(`Event ${rejectingEvent.id} rejected.`);
       setRejectingEvent(null);
       setCustomRejectNote("");
-    } catch {
-      toast.error("Failed to reject event");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reject event");
     } finally {
       setIsSubmittingReject(false);
     }
@@ -115,8 +139,8 @@ export function ValidationWorkQueueTable({
       await onReverse(reversingEvent.id, reversalReason);
       toast.success(`Event ${reversingEvent.id} reversed with compensating transaction.`);
       setReversingEvent(null);
-    } catch {
-      toast.error("Failed to reverse event");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reverse event");
     } finally {
       setIsSubmittingReverse(false);
     }
@@ -203,19 +227,21 @@ export function ValidationWorkQueueTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+              {isLoading && (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     Loading commercial validation queue...
                   </td>
                 </tr>
-              ) : filteredEvents.length === 0 ? (
+              )}
+              {!isLoading && filteredEvents.length === 0 && (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     No validation events found matching criteria.
                   </td>
                 </tr>
-              ) : (
+              )}
+              {!isLoading &&
                 filteredEvents.map((event) => {
                   const isHighRisk = (event.fraudRiskScore ?? 0) >= 60;
                   const isMediumRisk =
@@ -280,11 +306,7 @@ export function ValidationWorkQueueTable({
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                            isHighRisk
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : isMediumRisk
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            getFraudRiskBadgeClass(isHighRisk, isMediumRisk)
                           )}
                         >
                           {isHighRisk ? (
@@ -301,13 +323,7 @@ export function ValidationWorkQueueTable({
                         <span
                           className={cn(
                             "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize",
-                            event.status === "approved"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : event.status === "rejected"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : event.status === "reversed"
-                              ? "bg-purple-50 text-purple-700 border-purple-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
+                            getEventStatusBadgeClass(event.status)
                           )}
                         >
                           {event.status}
@@ -324,10 +340,7 @@ export function ValidationWorkQueueTable({
                         {event.status === "pending" && (
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => {
-                                onApprove(event.id);
-                                toast.success(`Approved commercial event ${event.id}`);
-                              }}
+                              onClick={() => handleApprove(event.id)}
                               className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
                               title="Approve Commercial Event"
                             >
@@ -362,8 +375,7 @@ export function ValidationWorkQueueTable({
                       </td>
                     </tr>
                   );
-                })
-              )}
+                })}
             </tbody>
           </table>
         </div>
@@ -393,10 +405,14 @@ export function ValidationWorkQueueTable({
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                <label
+                  htmlFor="rejection-reason-select"
+                  className="text-xs font-semibold text-slate-700 block mb-1"
+                >
                   Mandatory Reason Code
                 </label>
                 <select
+                  id="rejection-reason-select"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500"
@@ -410,10 +426,14 @@ export function ValidationWorkQueueTable({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                <label
+                  htmlFor="custom-reject-note-input"
+                  className="text-xs font-semibold text-slate-700 block mb-1"
+                >
                   Compliance / Audit Note (Optional)
                 </label>
                 <textarea
+                  id="custom-reject-note-input"
                   value={customRejectNote}
                   onChange={(e) => setCustomRejectNote(e.target.value)}
                   placeholder="Provide additional evidence, ASN details, or telemetry reference..."
@@ -474,10 +494,14 @@ export function ValidationWorkQueueTable({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
+              <label
+                htmlFor="reversal-reason-input"
+                className="text-xs font-semibold text-slate-700 block mb-1"
+              >
                 Reversal & Clawback Reason
               </label>
               <input
+                id="reversal-reason-input"
                 value={reversalReason}
                 onChange={(e) => setReversalReason(e.target.value)}
                 placeholder="Reason for post-approval reversal..."

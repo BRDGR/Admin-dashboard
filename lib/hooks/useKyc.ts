@@ -116,10 +116,16 @@ export function useSendOrgKycReminder() {
   });
 }
 
+export type SendPartnerReminderInput =
+  | string
+  | { partnerUserId: string; partnerProfileId?: string; kycRecordId?: string };
+
 export function useSendPartnerKycReminder() {
   return useMutation({
-    mutationFn: async (partnerUserId: string) => {
-      const res = await sendPartnerKycReminder(partnerUserId);
+    mutationFn: async (target: SendPartnerReminderInput) => {
+      const partnerUserId = typeof target === "string" ? target : target.partnerUserId;
+      const extra = typeof target === "object" ? target : undefined;
+      const res = await sendPartnerKycReminder(partnerUserId, extra);
       if (!res.ok || res.error) {
         throw new Error(res.error ?? "Failed to send KYC reminder to partner");
       }

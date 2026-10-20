@@ -88,9 +88,16 @@ export function PartnerKycTab() {
                 const uid = row.partnerUser?.id;
                 if (!uid) return;
                 setSendingPartnerId(uid);
-                sendReminder(uid, {
-                  onSettled: () => setSendingPartnerId(null),
-                });
+                sendReminder(
+                  {
+                    partnerUserId: uid,
+                    partnerProfileId: row.partnerProfile?.id,
+                    kycRecordId: row.kycRecordId,
+                  },
+                  {
+                    onSettled: () => setSendingPartnerId(null),
+                  }
+                );
               }}
               disabled={isSendingReminder && sendingPartnerId === row.partnerUser.id}
             />

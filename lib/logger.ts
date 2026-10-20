@@ -36,7 +36,8 @@ export const logger = {
 
   api: (method: string, url: string, status?: number, payload?: unknown) => {
     if (isDebugEnabled()) {
-      console.log(`[API ${method}] ${url} ${status ? `[${status}]` : ""}`, payload ?? "");
+      const statusTag = status ? ` [${status}]` : "";
+      console.log(`[API ${method}] ${url}${statusTag}`, payload ?? "");
     }
   },
 };

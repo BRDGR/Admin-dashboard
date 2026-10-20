@@ -78,7 +78,7 @@ export function CampaignScoringConfigModal({
 
     try {
       setIsSaving(true);
-      const newVersionNum = parseFloat(activeConfig.configVersion.replace("v", "")) + 0.01;
+      const newVersionNum = Number.parseFloat(activeConfig.configVersion.replace("v", "")) + 0.01;
       const newVersion = `v${newVersionNum.toFixed(2)}`;
 
       const updated: CampaignConfigVersionDTO = {

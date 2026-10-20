@@ -25,9 +25,8 @@ export async function listDirectoryContacts(params?: {
   if (params?.limit) query.set("limit", String(params.limit));
 
   const qs = query.toString();
-  const res = await apiRequest<ApiEnvelope<DirectoryContactsResponse>>(
-    `/admin/directory-contacts${qs ? `?${qs}` : ""}`
-  );
+  const endpoint = qs ? `/admin/directory-contacts?${qs}` : "/admin/directory-contacts";
+  const res = await apiRequest<ApiEnvelope<DirectoryContactsResponse>>(endpoint);
 
   if (res.data?.data?.contacts) {
     res.data.data.contacts = unwrapContacts(

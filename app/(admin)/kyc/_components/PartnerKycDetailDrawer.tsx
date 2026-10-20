@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   User,
@@ -231,7 +231,7 @@ export function PartnerKycDetailDrawer({
               )}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-slate-400">Submitted</span>
-                <span className="text-slate-700">{format(new Date(record.submittedAt), "MMM d, yyyy · HH:mm")}</span>
+                <span className="text-slate-700">{safeFormatDate(record.submittedAt, "MMM d, yyyy · HH:mm")}</span>
               </div>
             </div>
           </div>
@@ -243,7 +243,14 @@ export function PartnerKycDetailDrawer({
             <Button
               variant="outline"
               className="flex-1 text-xs font-semibold border-slate-200"
-              onClick={() => record.partnerUser?.id && sendReminder(record.partnerUser.id)}
+              onClick={() =>
+                record.partnerUser?.id &&
+                sendReminder({
+                  partnerUserId: record.partnerUser.id,
+                  partnerProfileId: record.partnerProfile?.id,
+                  kycRecordId: record.kycRecordId,
+                })
+              }
               disabled={isSendingReminder}
             >
               <Bell className="w-3.5 h-3.5 mr-1.5 text-amber-600" />

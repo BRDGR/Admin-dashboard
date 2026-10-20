@@ -49,12 +49,22 @@ export interface DemoRequest {
 /** Alias for backwards-compat with components that import `User` */
 export type User = AdminUser;
 
+export type UserRole =
+  | "partner"
+  | "client"
+  | "admin"
+  | "ops_admin"
+  | "super_admin"
+  | "staff"
+  | "reviewer"
+  | "support";
+
 export interface AdminUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: "partner" | "client" | "admin" | "ops_admin" | "super_admin" | "staff" | "reviewer" | "support" | string;
+  role: UserRole;
   isActive: boolean;
   emailVerifiedAt: string | null;
   createdAt: string;
@@ -273,12 +283,14 @@ export interface ByopRelationshipsResponse {
 
 // ─── Staff ────────────────────────────────────────────────────────────────────
 
+export type StaffRole = "admin" | "ops_admin" | "super_admin";
+
 export interface StaffMember {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "ops_admin" | "super_admin" | string;
+  role: StaffRole;
   staffRole?: string;
   isActive: boolean;
   imageUrl?: string | null;
@@ -298,7 +310,7 @@ export interface CreateStaffPayload {
   firstName: string;
   lastName: string;
   email: string;
-  role: "admin" | "ops_admin" | "super_admin";
+  role: StaffRole;
 }
 
 // ─── Seed History ─────────────────────────────────────────────────────────────
@@ -327,8 +339,7 @@ export type NotificationType =
   | "byop_invite"
   | "organization_invite"
   | "pending_change"
-  | "system_alert"
-  | string;
+  | "system_alert";
 
 export interface NotificationPayload {
   message?: string;

@@ -88,7 +88,7 @@ export default function AdminCampaignsPage() {
   });
 
   // Payout Summary Query
-  const { data: payoutData } = useQuery({
+  const { data: payoutData, error: payoutError } = useQuery({
     queryKey: ["admin", "campaigns", "payout-approval"],
     queryFn: async () => {
       const res = await getPayoutApprovalSummary();
@@ -99,7 +99,7 @@ export default function AdminCampaignsPage() {
   });
 
   // Scoring Config Query
-  const { data: scoringConfigData } = useQuery({
+  const { data: scoringConfigData, error: scoringConfigError } = useQuery({
     queryKey: ["admin", "campaigns", "scoring-config"],
     queryFn: async () => {
       const res = await getCampaignScoringConfig();
@@ -108,6 +108,9 @@ export default function AdminCampaignsPage() {
     },
     enabled: activeTab === "Payout Approvals & Audit",
   });
+
+  const payoutTabError = payoutError ?? scoringConfigError;
+  const isPayoutTabReady = Boolean(payoutData && scoringConfigData?.activeConfig);
 
   // Partner Leaderboard Query
   const { data: leaderboardData } = useQuery({
@@ -321,11 +324,11 @@ export default function AdminCampaignsPage() {
 
       {activeTab === "Payout Approvals & Audit" && (
         <>
-          {payoutData && scoringConfigData ? (
+          {isPayoutTabReady && payoutData && scoringConfigData?.activeConfig && (
             <CampaignPayoutAuditTab
               payoutSummary={payoutData}
               scoringConfig={scoringConfigData.activeConfig}
-              scoringHistory={scoringConfigData.history}
+              scoringHistory={scoringConfigData.history ?? []}
               partnersList={leaderboardData ?? []}
               onApproveBatch={async (campaignId) => {
                 await approveBatchMutation.mutateAsync(campaignId);
@@ -334,7 +337,13 @@ export default function AdminCampaignsPage() {
                 await updateScoringMutation.mutateAsync(config);
               }}
             />
-          ) : (
+          )}
+          {!isPayoutTabReady && payoutTabError && (
+            <div className="p-12 text-center text-rose-600 text-xs" role="alert">
+              {payoutTabError.message || "Failed to load payout approvals and scoring configuration."}
+            </div>
+          )}
+          {!isPayoutTabReady && !payoutTabError && (
             <div className="p-12 text-center text-slate-400 text-xs">
               Loading payout normalization invariants and scoring audit logs...
             </div>

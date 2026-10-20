@@ -19,7 +19,7 @@ export function exportWaitlistCSV(entries: WaitlistEntry[]) {
   a.download = `waitlist-${format(new Date(), "yyyy-MM-dd")}.csv`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -75,7 +75,7 @@ export function exportPayoutBatchCSV(
   a.download = `payout-batch-${sanitizedName}-${format(new Date(), "yyyy-MM-dd")}.csv`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

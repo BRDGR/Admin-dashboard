@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
@@ -252,12 +252,12 @@ export function OrgKycDetailDrawer({
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-slate-400">Submitted</span>
-                    <span className="text-slate-700">{format(new Date(kyc.submittedAt), "MMM d, yyyy · HH:mm")}</span>
+                    <span className="text-slate-700">{safeFormatDate(kyc.submittedAt, "MMM d, yyyy · HH:mm")}</span>
                   </div>
                   {kyc.decidedAt && (
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-slate-400">Decided</span>
-                      <span className="text-slate-700">{format(new Date(kyc.decidedAt), "MMM d, yyyy · HH:mm")}</span>
+                      <span className="text-slate-700">{safeFormatDate(kyc.decidedAt, "MMM d, yyyy · HH:mm")}</span>
                     </div>
                   )}
                 </div>
