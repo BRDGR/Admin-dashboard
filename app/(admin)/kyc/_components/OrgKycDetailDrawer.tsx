@@ -290,6 +290,7 @@ export function OrgKycDetailDrawer({
             )}
             {kyc.status === "pending" && onOpenDecision && (
               <Button
+                variant="success"
                 className="flex-1 text-xs font-semibold"
                 onClick={() => onOpenDecision(kyc.id, kyc.orgId, orgName)}
               >

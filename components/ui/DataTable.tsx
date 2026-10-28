@@ -414,7 +414,7 @@ export function TableActionButton({
   icon?: React.ReactNode;
   label: string;
   onClick?: (e: React.MouseEvent) => void;
-  variant?: "outline" | "danger" | "primary" | "subtle";
+  variant?: "outline" | "danger" | "primary" | "success" | "subtle";
   size?: "sm" | "md";
   disabled?: boolean;
   className?: string;
@@ -423,6 +423,7 @@ export function TableActionButton({
     outline: "border-slate-200/90 text-slate-700 hover:bg-slate-50 hover:border-slate-300",
     danger: "border-red-200/80 text-red-600 hover:bg-red-50 hover:border-red-300",
     primary: "border-[#0364FF]/30 text-[#0364FF] hover:bg-blue-50/70",
+    success: "border-emerald-300 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/70",
     subtle: "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800",
   };
 

@@ -42,16 +42,16 @@ export function CampaignAssignmentsModal({ campaign, onClose }: CampaignAssignme
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 md:p-6 overflow-y-auto">
+      <div className="bg-white sm:rounded-2xl max-w-xl w-full h-full sm:h-auto sm:max-h-[85vh] shadow-2xl border border-slate-200/90 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col">
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between shrink-0 bg-white">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Partner Assignments</h3>
-            <p className="text-xs text-slate-400">{campaign.name}</p>
+            <p className="text-xs text-slate-500">{campaign.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

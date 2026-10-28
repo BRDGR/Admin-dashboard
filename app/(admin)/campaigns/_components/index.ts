@@ -10,3 +10,5 @@ export { ValidationWorkQueueTable } from "./ValidationWorkQueueTable";
 export { PayoutApprovalModal } from "./PayoutApprovalModal";
 export { CampaignScoringConfigModal } from "./CampaignScoringConfigModal";
 export { CampaignPayoutAuditTab } from "./CampaignPayoutAuditTab";
+export * from "./tabs";
+export * from "./review";

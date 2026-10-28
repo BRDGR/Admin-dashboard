@@ -149,218 +149,266 @@ export function ValidationWorkQueueTable({
   return (
     <div className="space-y-4">
       {/* Filters bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status Tabs */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg">
-            {(["pending", "approved", "rejected", "reversed", "ALL"] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={cn(
-                  "px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer capitalize",
-                  statusFilter === st
-                    ? "bg-white text-slate-900 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                {st === "ALL" ? "All Statuses" : st}
-              </button>
-            ))}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Tabs */}
+            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl overflow-x-auto no-scrollbar">
+              {(["pending", "approved", "rejected", "reversed", "ALL"] as const).map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStatusFilter(st)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer capitalize whitespace-nowrap",
+                    statusFilter === st
+                      ? "bg-white text-slate-900 shadow-xs font-bold border border-slate-200/60"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  {st === "ALL" ? "All Statuses" : st}
+                </button>
+              ))}
+            </div>
+
+            {/* Age Group Filter */}
+            <select
+              value={ageFilter}
+              onChange={(e) => setAgeFilter(e.target.value)}
+              className="text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 text-slate-700 font-semibold cursor-pointer outline-none focus:ring-2 focus:ring-[#0364FF]/20"
+            >
+              <option value="ALL">All Event Ages</option>
+              <option value="<24h">&lt; 24h (Urgent SLA)</option>
+              <option value="24-48h">24h – 48h</option>
+              <option value=">48h">&gt; 48h (SLA Warning)</option>
+            </select>
+
+            {/* Client Filter */}
+            <select
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 text-slate-700 font-semibold cursor-pointer outline-none focus:ring-2 focus:ring-[#0364FF]/20"
+            >
+              <option value="ALL">All Clients ({clientOptions.length})</option>
+              {clientOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Age Group Filter */}
-          <select
-            value={ageFilter}
-            onChange={(e) => setAgeFilter(e.target.value)}
-            className="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium cursor-pointer"
-          >
-            <option value="ALL">All Ages</option>
-            <option value="<24h">&lt; 24h (Urgent SLA)</option>
-            <option value="24-48h">24h - 48h</option>
-            <option value=">48h">&gt; 48h (SLA Warning)</option>
-          </select>
+            {/* Search */}
+            <div className="relative w-full lg:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search event ID, client, partner..."
+                className="w-full text-xs pl-10 pr-8 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200/90 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all font-medium"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
 
-          {/* Client Filter */}
-          <select
-            value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
-            className="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium cursor-pointer"
-          >
-            <option value="ALL">All Clients ({clientOptions.length})</option>
-            {clientOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 gap-1.5">
+            <span>
+              Showing <strong className="text-slate-700">{filteredEvents.length}</strong> of {events.length} validation events
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">
+              Events older than 48h are subject to automated SLA escalation
+            </span>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative min-w-[220px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search event ID, client, partner..."
-            className="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0364FF]"
-          />
-        </div>
-      </div>
-
-      {/* Events Table */}
-      <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Event ID</th>
-                <th className="py-3 px-4">Client / Campaign</th>
-                <th className="py-3 px-4">Partner</th>
-                <th className="py-3 px-4">Event Type</th>
-                <th className="py-3 px-4">Attribution Value</th>
-                <th className="py-3 px-4">Age / Timestamp</th>
-                <th className="py-3 px-4 text-center">Fraud Risk</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-right">Supervisory Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {isLoading && (
+        {/* Events Table Card */}
+        <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    Loading commercial validation queue...
-                  </td>
+                  <th className="py-3 px-4">Event ID</th>
+                  <th className="py-3 px-4">Client / Campaign</th>
+                  <th className="py-3 px-4">Partner</th>
+                  <th className="py-3 px-4">Event Type</th>
+                  <th className="py-3 px-4">Attribution Value</th>
+                  <th className="py-3 px-4">Age / Timestamp</th>
+                  <th className="py-3 px-4 text-center">Fraud Risk</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Supervisory Actions</th>
                 </tr>
-              )}
-              {!isLoading && filteredEvents.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    No validation events found matching criteria.
-                  </td>
-                </tr>
-              )}
-              {!isLoading &&
-                filteredEvents.map((event) => {
-                  const isHighRisk = (event.fraudRiskScore ?? 0) >= 60;
-                  const isMediumRisk =
-                    (event.fraudRiskScore ?? 0) >= 30 && (event.fraudRiskScore ?? 0) < 60;
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoading && (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                      Loading commercial validation queue...
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && filteredEvents.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                      No validation events found matching criteria.
+                    </td>
+                  </tr>
+                )}
+                {!isLoading &&
+                  filteredEvents.map((event) => {
+                    const isHighRisk = (event.fraudRiskScore ?? 0) >= 60;
+                    const isMediumRisk =
+                      (event.fraudRiskScore ?? 0) >= 30 && (event.fraudRiskScore ?? 0) < 60;
 
-                  return (
-                    <tr key={event.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* ID */}
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                        {event.id}
-                      </td>
-
-                      {/* Client & Campaign */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                          <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span>{event.clientName}</span>
-                        </div>
-                        {event.campaignName && (
-                          <span className="text-[11px] text-slate-400 block truncate max-w-[180px]">
-                            {event.campaignName}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Partner */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-800">{event.partnerName}</div>
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {event.partnerId}
-                        </span>
-                      </td>
-
-                      {/* Event Type */}
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          {event.eventType.replace(/_/g, " ")}
-                        </span>
-                      </td>
-
-                      {/* Value */}
-                      <td className="py-3 px-4 font-bold text-slate-900">
-                        ${(event.amountMinor / 100).toFixed(2)}{" "}
-                        <span className="text-[10px] font-normal text-slate-400">
-                          {event.currency}
-                        </span>
-                      </td>
-
-                      {/* Age & Timestamp */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1 text-slate-700 font-medium">
-                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span>{event.ageHours}h ago</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          {format(new Date(event.occurredAt), "MMM d, HH:mm")}
-                        </span>
-                      </td>
-
-                      {/* Fraud Risk Score */}
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                            getFraudRiskBadgeClass(isHighRisk, isMediumRisk)
-                          )}
-                        >
-                          {isHighRisk ? (
-                            <AlertTriangle className="w-3 h-3 text-rose-600" />
-                          ) : (
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                          )}
-                          {event.fraudRiskScore ?? 0}/100 Risk
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize",
-                            getEventStatusBadgeClass(event.status)
-                          )}
-                        >
-                          {event.status}
-                        </span>
-                        {event.reversalTxId && (
-                          <span className="block text-[9px] font-mono text-purple-600 mt-0.5">
-                            {event.reversalTxId}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Supervisory Actions */}
-                      <td className="py-3 px-4 text-right">
-                        {event.status === "pending" && (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleApprove(event.id)}
-                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                              title="Approve Commercial Event"
-                            >
-                              <Check className="w-3 h-3" /> Approve
-                            </button>
-                            <button
-                              onClick={() => setRejectingEvent(event)}
-                              className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                              title="Reject Event with Reason Code"
-                            >
-                              <X className="w-3 h-3" /> Reject
-                            </button>
-                          </div>
-                        )}
-                        {event.status === "approved" && (
-                          <button
-                            onClick={() => setReversingEvent(event)}
-                            className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
-                            title="Issue Compensating Reversal Ledger Transaction"
+                    return (
+                      <tr key={event.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* ID */}
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                          <span
+                            className="block truncate max-w-[110px]"
+                            title={event.id}
                           >
+                            {event.id}
+                          </span>
+                        </td>
+
+                        {/* Client & Campaign */}
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1.5 min-w-0">
+                            <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span
+                              className="truncate max-w-[140px] sm:max-w-[180px] block"
+                              title={event.clientName}
+                            >
+                              {event.clientName}
+                            </span>
+                          </div>
+                          {event.campaignName && (
+                            <span
+                              className="text-[11px] text-slate-400 block truncate max-w-[140px] sm:max-w-[180px]"
+                              title={event.campaignName}
+                            >
+                              {event.campaignName}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Partner */}
+                        <td className="py-3 px-4">
+                          <div
+                            className="font-semibold text-slate-800 truncate max-w-[130px] sm:max-w-[160px]"
+                            title={event.partnerName}
+                          >
+                            {event.partnerName}
+                          </div>
+                          <span
+                            className="text-[11px] font-mono text-slate-400 block truncate max-w-[120px]"
+                            title={event.partnerId}
+                          >
+                            {event.partnerId}
+                          </span>
+                        </td>
+
+                        {/* Event Type */}
+                        <td className="py-3 px-4">
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 truncate max-w-[140px]"
+                            title={event.eventType.replace(/_/g, " ")}
+                          >
+                            {event.eventType.replace(/_/g, " ")}
+                          </span>
+                        </td>
+
+                        {/* Value */}
+                        <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">
+                          ${(event.amountMinor / 100).toFixed(2)}{" "}
+                          <span className="text-[10px] font-normal text-slate-400">
+                            {event.currency}
+                          </span>
+                        </td>
+
+                        {/* Age & Timestamp */}
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1 text-slate-700 font-medium">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{event.ageHours}h ago</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {format(new Date(event.occurredAt), "MMM d, HH:mm")}
+                          </span>
+                        </td>
+
+                        {/* Fraud Risk Score */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                              getFraudRiskBadgeClass(isHighRisk, isMediumRisk)
+                            )}
+                          >
+                            {isHighRisk ? (
+                              <AlertTriangle className="w-3 h-3 text-rose-600" />
+                            ) : (
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                            )}
+                            {event.fraudRiskScore ?? 0}/100 Risk
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span
+                            className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize",
+                              getEventStatusBadgeClass(event.status)
+                            )}
+                          >
+                            {event.status}
+                          </span>
+                          {event.reversalTxId && (
+                            <span
+                              className="block text-[9px] font-mono text-purple-600 mt-0.5 truncate max-w-[100px] mx-auto"
+                              title={event.reversalTxId}
+                            >
+                              {event.reversalTxId}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Supervisory Actions */}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          {event.status === "pending" && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleApprove(event.id)}
+                                className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                                title="Approve Commercial Event"
+                              >
+                                <Check className="w-3 h-3" /> Approve
+                              </button>
+                              <button
+                                onClick={() => setRejectingEvent(event)}
+                                className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                                title="Reject Event with Reason Code"
+                              >
+                                <X className="w-3 h-3" /> Reject
+                              </button>
+                            </div>
+                          )}
+                          {event.status === "approved" && (
+                            <button
+                              onClick={() => setReversingEvent(event)}
+                              className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                              title="Issue Compensating Reversal Ledger Transaction"
+                            >
                             <RotateCcw className="w-3 h-3" /> Reverse
                           </button>
                         )}

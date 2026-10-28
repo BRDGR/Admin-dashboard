@@ -115,7 +115,7 @@ function handleHttpError<T>(ctx: RequestContext, status: number, json: T | null)
     });
   }
 
-  if (isAuthError(status, message)) redirectToLogin();
+  if (!ctx.silent && isAuthError(status, message)) redirectToLogin();
 
   return { data: json, error: message, status, ok: false };
 }

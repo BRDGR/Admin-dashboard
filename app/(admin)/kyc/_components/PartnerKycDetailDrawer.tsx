@@ -259,6 +259,7 @@ export function PartnerKycDetailDrawer({
           )}
           {record.status === "pending" && onOpenDecision && (
             <Button
+              variant="success"
               className="flex-1 text-xs font-semibold"
               onClick={() => onOpenDecision(record.kycRecordId, partnerName)}
             >

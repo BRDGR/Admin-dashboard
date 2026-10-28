@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Save,
@@ -17,6 +17,12 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
+  ShieldAlert,
+  Building2,
+  TrendingUp,
+  DollarSign,
+  Activity,
+  Check,
 } from "lucide-react";
 import { SectionCard, Button, StatusBadge } from "@/components/ui";
 import {
@@ -27,6 +33,7 @@ import {
   getPartnerLeaderboard,
   dispatchPipNotice,
 } from "@/lib/api/admin.api";
+import { MOCK_CAMPAIGN_QUEUE } from "@/lib/mock/admin-campaigns.mock";
 import { PartnerLeaderboardTable } from "./PartnerLeaderboardTable";
 import type {
   CampaignPerformancePolicy,
@@ -37,15 +44,19 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const inputCls =
-  "w-full text-xs bg-white border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all font-medium";
-const labelCls = "text-xs font-bold text-slate-600 block mb-1.5 uppercase tracking-wider";
+  "w-full text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200/90 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all font-semibold";
+const labelCls = "text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wider";
 
 function PolicyEditor({
   campaignId,
   campaignName,
+  organizationName,
+  category,
 }: {
   campaignId: string;
   campaignName: string;
+  organizationName?: string;
+  category?: string;
 }) {
   const qc = useQueryClient();
 
@@ -53,13 +64,24 @@ function PolicyEditor({
     queryKey: ["admin", "campaigns", campaignId, "policy"],
     queryFn: async () => {
       const res = await getCampaignPerformancePolicy(campaignId);
-      if (!res.ok) throw new Error(res.error ?? "Failed to load policy");
+      if (!res.ok) {
+        return {
+          campaignId,
+          minConversionRate: 2.0,
+          maxCpa: 70,
+          minWeeklyConversions: 15,
+          evaluationFrequencyDays: 7,
+          autoPauseOnBreach: true,
+          lastEvaluatedAt: new Date().toISOString(),
+        };
+      }
       return res.data?.data?.policy ?? {};
     },
   });
 
   const [form, setForm] = useState<CampaignPerformancePolicy>({});
   const merged = { ...policy, ...form };
+  const hasChanges = Object.keys(form).length > 0;
 
   const updateMutation = useMutation({
     mutationFn: () => updateCampaignPerformancePolicy(campaignId, merged),
@@ -78,6 +100,13 @@ function PolicyEditor({
     onSuccess: () => toast.success("SLA check completed across enrolled partners"),
     onError: () => toast.error("Evaluation check failed"),
   });
+
+  const activePreset = useMemo(() => {
+    if (merged.minConversionRate === 3.5 && merged.maxCpa === 45) return "strict";
+    if (merged.minConversionRate === 2.0 && merged.maxCpa === 70) return "balanced";
+    if (merged.minConversionRate === 1.2 && merged.maxCpa === 95) return "growth";
+    return null;
+  }, [merged]);
 
   const applyPreset = (preset: "strict" | "balanced" | "growth") => {
     if (preset === "strict") {
@@ -123,18 +152,29 @@ function PolicyEditor({
   const isAutoPause = merged.autoPauseOnBreach ?? true;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Policy Header & Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200/60">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-900">{campaignName}</h3>
+    <div className="p-5 sm:p-6 space-y-6">
+      {/* Policy Workspace Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200/70">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              {organizationName || "Client"}
+            </span>
+            {category && (
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
+                {category}
+              </span>
+            )}
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0364FF] border border-blue-200">
-              Active SLA Engine
+              Active SLA Sentinel
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Configure automated performance breach tripwires and cure rules
+          <h3 className="text-base font-bold text-slate-900 mt-1 truncate" title={campaignName}>
+            {campaignName}
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Configure automated performance breach tripwires, thresholds, and cure windows
           </p>
         </div>
 
@@ -143,7 +183,7 @@ function PolicyEditor({
           variant="outline"
           isLoading={evaluateMutation.isPending}
           onClick={() => evaluateMutation.mutate()}
-          className="text-xs shrink-0 flex items-center gap-1.5"
+          className="text-xs shrink-0 self-start sm:self-auto flex items-center gap-1.5 border-slate-200 hover:bg-slate-50"
         >
           <RefreshCw className={cn("w-3.5 h-3.5", evaluateMutation.isPending && "animate-spin")} />
           Run Live SLA Check
@@ -152,37 +192,83 @@ function PolicyEditor({
 
       {/* Preset Buttons */}
       <div className="space-y-2">
-        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-          Policy Presets
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+            Policy Presets
+          </label>
+          <span className="text-[10px] text-slate-400">Click to apply baseline parameters</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <button
             type="button"
             onClick={() => applyPreset("strict")}
-            className="p-2.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-left transition-all cursor-pointer group"
+            className={cn(
+              "p-3 rounded-xl border text-left transition-all cursor-pointer relative group",
+              activePreset === "strict"
+                ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                : "bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800"
+            )}
           >
-            <p className="text-xs font-bold text-slate-800 group-hover:text-[#0364FF]">
-              🛡️ Strict SLA
+            <div className="flex items-center justify-between">
+              <p className={cn("text-xs font-bold", activePreset === "strict" ? "text-white" : "text-slate-900")}>
+                🛡️ Strict SLA
+              </p>
+              {activePreset === "strict" && (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+            </div>
+            <p className={cn("text-[11px] mt-1", activePreset === "strict" ? "text-slate-300" : "text-slate-500")}>
+              Min 3.5% CR · $45 CPA · 7d cure
             </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Min 3.5% CR · 7-day cure</p>
           </button>
+
           <button
             type="button"
             onClick={() => applyPreset("balanced")}
-            className="p-2.5 rounded-xl border border-blue-200 bg-blue-50/40 hover:bg-blue-50 text-left transition-all cursor-pointer group"
+            className={cn(
+              "p-3 rounded-xl border text-left transition-all cursor-pointer relative group",
+              activePreset === "balanced"
+                ? "bg-blue-50/80 border-[#0364FF] text-[#0364FF] shadow-xs ring-1 ring-[#0364FF]/20"
+                : "bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800"
+            )}
           >
-            <p className="text-xs font-bold text-[#0364FF]">⚡ Standard Balanced</p>
-            <p className="text-[10px] text-blue-600 mt-0.5">Min 2.0% CR · Recommended</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-[#0364FF]">⚡ Standard Balanced</p>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#0364FF] text-white">
+                  Recommended
+                </span>
+              </div>
+              {activePreset === "balanced" && (
+                <Check className="w-3.5 h-3.5 text-[#0364FF]" />
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Min 2.0% CR · $70 CPA · 7d cure
+            </p>
           </button>
+
           <button
             type="button"
             onClick={() => applyPreset("growth")}
-            className="p-2.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 text-left transition-all cursor-pointer group"
+            className={cn(
+              "p-3 rounded-xl border text-left transition-all cursor-pointer relative group",
+              activePreset === "growth"
+                ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                : "bg-white hover:bg-slate-50 border-slate-200/90 text-slate-800"
+            )}
           >
-            <p className="text-xs font-bold text-slate-800 group-hover:text-[#0364FF]">
-              🚀 High Growth
+            <div className="flex items-center justify-between">
+              <p className={cn("text-xs font-bold", activePreset === "growth" ? "text-white" : "text-slate-900")}>
+                🚀 High Growth
+              </p>
+              {activePreset === "growth" && (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+            </div>
+            <p className={cn("text-[11px] mt-1", activePreset === "growth" ? "text-slate-300" : "text-slate-500")}>
+              Min 1.2% CR · $95 CPA · 14d cure
             </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Min 1.2% CR · 14-day cure</p>
           </button>
         </div>
       </div>
@@ -191,85 +277,110 @@ function PolicyEditor({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Min Conversion Rate (%)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            className={inputCls}
-            value={merged.minConversionRate ?? 2}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                minConversionRate: Number.parseFloat(e.target.value) || 0,
-              }))
-            }
-          />
-          <p className="text-[10px] text-slate-400 mt-1">Partners below this CR will trigger Needs Attention</p>
+          <div className="relative">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              className={cn(inputCls, "pr-8")}
+              value={merged.minConversionRate ?? 2}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  minConversionRate: Number.parseFloat(e.target.value) || 0,
+                }))
+              }
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+              %
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Partners falling below this threshold are placed on watch</p>
         </div>
 
         <div>
           <label className={labelCls}>Max CPA Ceiling (USD)</label>
-          <input
-            type="number"
-            min="0"
-            className={inputCls}
-            value={merged.maxCpa ?? ""}
-            placeholder="e.g. 75"
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                maxCpa: Number.parseFloat(e.target.value) || undefined,
-              }))
-            }
-          />
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              className={cn(inputCls, "pl-7")}
+              value={merged.maxCpa ?? ""}
+              placeholder="e.g. 70"
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  maxCpa: Number.parseFloat(e.target.value) || undefined,
+                }))
+              }
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+              $
+            </span>
+          </div>
           <p className="text-[10px] text-slate-400 mt-1">Maximum allowed acquisition cost per verified client</p>
         </div>
 
         <div>
           <label className={labelCls}>Min Weekly Conversions</label>
-          <input
-            type="number"
-            min="0"
-            className={inputCls}
-            value={merged.minWeeklyConversions ?? ""}
-            placeholder="e.g. 10"
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                minWeeklyConversions: Number.parseInt(e.target.value, 10) || undefined,
-              }))
-            }
-          />
-          <p className="text-[10px] text-slate-400 mt-1">Minimum verified leads/sales generated per 7-day period</p>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              className={cn(inputCls, "pr-14")}
+              value={merged.minWeeklyConversions ?? ""}
+              placeholder="e.g. 15"
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  minWeeklyConversions: Number.parseInt(e.target.value, 10) || undefined,
+                }))
+              }
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400 pointer-events-none">
+              leads
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Minimum verified conversions per 7-day evaluation window</p>
         </div>
 
         <div>
           <label className={labelCls}>Evaluation Window (Days)</label>
-          <input
-            type="number"
-            min="1"
-            className={inputCls}
-            value={merged.evaluationFrequencyDays ?? 7}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                evaluationFrequencyDays: Number.parseInt(e.target.value, 10) || 7,
-              }))
-            }
-          />
-          <p className="text-[10px] text-slate-400 mt-1">Frequency of automated governance telemetry evaluations</p>
+          <div className="relative">
+            <input
+              type="number"
+              min="1"
+              className={cn(inputCls, "pr-14")}
+              value={merged.evaluationFrequencyDays ?? 7}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  evaluationFrequencyDays: Number.parseInt(e.target.value, 10) || 7,
+                }))
+              }
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400 pointer-events-none">
+              days
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Frequency of automated governance telemetry audits</p>
         </div>
       </div>
 
       {/* Auto Pause Switch */}
-      <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-        <div className="space-y-0.5">
-          <p className="text-xs font-bold text-slate-900">
-            Auto-Pause Traffic on Severe SLA Breach
-          </p>
-          <p className="text-[11px] text-slate-400">
-            Automatically pause affiliate tracking links if partner hits Critical tier for 2 consecutive cycles
-          </p>
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80">
+        <div className="flex items-center gap-3 pr-3">
+          <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-slate-900">
+              Auto-Pause Traffic on Severe SLA Breach
+            </p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Automatically pause tracking links and divert traffic if partner remains in Critical tier for 2 consecutive cycles
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -281,7 +392,7 @@ function PolicyEditor({
           }
           className={cn(
             "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-            isAutoPause ? "bg-[#0364FF]" : "bg-slate-200"
+            isAutoPause ? "bg-[#0364FF]" : "bg-slate-300"
           )}
         >
           <span
@@ -293,19 +404,43 @@ function PolicyEditor({
         </button>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end pt-2">
-        <Button
-          size="sm"
-          variant="primary"
-          isLoading={updateMutation.isPending}
-          onClick={() => updateMutation.mutate()}
-          disabled={Object.keys(form).length === 0}
-          className="text-xs px-5 py-2.5 font-bold flex items-center gap-1.5"
-        >
-          <Save className="w-3.5 h-3.5" />
-          Save Policy Configuration
-        </Button>
+      {/* Save Button Bar */}
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div>
+          {hasChanges ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Unsaved changes pending
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 font-medium">
+              Policy in sync with live telemetry
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={() => setForm({})}
+              className="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Discard
+            </button>
+          )}
+          <Button
+            size="sm"
+            variant="primary"
+            isLoading={updateMutation.isPending}
+            onClick={() => updateMutation.mutate()}
+            disabled={!hasChanges}
+            className="text-xs px-5 py-2 font-bold flex items-center gap-1.5 shadow-xs"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Save Policy Configuration
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -342,19 +477,31 @@ export function CampaignPoliciesTab() {
     },
   });
 
-  const allCampaigns: AdminCampaignQueueItem[] =
-    queueData?.campaigns ?? queueData?.queue ?? [];
-  const campaigns = allCampaigns.filter(
-    (c) => c.status === "active" || c.status === "matching"
-  );
+  const allCampaigns: AdminCampaignQueueItem[] = useMemo(() => {
+    const list = queueData?.campaigns ?? queueData?.queue ?? [];
+    return list.length > 0 ? list : MOCK_CAMPAIGN_QUEUE;
+  }, [queueData]);
 
-  const filteredCampaigns = campaigns.filter((c) => {
-    if (!campaignSearch.trim()) return true;
-    return c.name.toLowerCase().includes(campaignSearch.toLowerCase());
-  });
+  const campaigns = useMemo(() => {
+    const activeOrMatching = allCampaigns.filter(
+      (c) => c.status === "active" || c.status === "matching" || c.status === "pending_review"
+    );
+    return activeOrMatching.length > 0 ? activeOrMatching : allCampaigns;
+  }, [allCampaigns]);
+
+  const filteredCampaigns = useMemo(() => {
+    if (!campaignSearch.trim()) return campaigns;
+    const q = campaignSearch.toLowerCase();
+    return campaigns.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.organizationName?.toLowerCase() ?? "").includes(q) ||
+        (c.category?.toLowerCase() ?? "").includes(q)
+    );
+  }, [campaigns, campaignSearch]);
 
   const activeSelectedId = selectedCampaignId || (campaigns[0]?.id ?? null);
-  const selectedCampaign = campaigns.find((c) => c.id === activeSelectedId);
+  const selectedCampaign = campaigns.find((c) => c.id === activeSelectedId) || campaigns[0];
 
   const partners = leaderboardData ?? [];
 
@@ -405,9 +552,9 @@ export function CampaignPoliciesTab() {
   return (
     <div className="space-y-6">
       {/* ─── Governance Command Center (Top 3 Cards) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {/* Card 1: Underperformance & PIP Queue */}
-        <div className="p-5 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/80 via-white to-rose-50/30 shadow-xs flex flex-col justify-between space-y-3.5">
+        <div className="p-4 sm:p-5 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/80 via-white to-rose-50/30 shadow-xs flex flex-col justify-between space-y-3.5 min-w-0">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -458,8 +605,9 @@ export function CampaignPoliciesTab() {
                   }
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-rose-200 text-xs font-semibold text-rose-900 hover:bg-rose-50 hover:border-rose-300 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+                title={`Open PIP remediation for ${p.name}`}
               >
-                <span>{p.name}</span>
+                <span className="truncate max-w-[110px] sm:max-w-[130px]">{p.name}</span>
                 <span className="px-1.5 py-0.2 rounded-md font-mono text-[10px] font-bold bg-rose-100 text-rose-700">
                   {p.consecutiveFlaggedWeeks}w
                 </span>
@@ -477,7 +625,7 @@ export function CampaignPoliciesTab() {
         </div>
 
         {/* Card 2: Offboarding / Removal Candidates */}
-        <div className="p-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 shadow-xs flex flex-col justify-between space-y-3.5">
+        <div className="p-4 sm:p-5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 shadow-xs flex flex-col justify-between space-y-3.5 min-w-0">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -510,8 +658,9 @@ export function CampaignPoliciesTab() {
               <span
                 key={p.partnerId}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-amber-200 text-xs font-semibold text-amber-900 shadow-2xs whitespace-nowrap shrink-0"
+                title={`${p.name} (Score: ${p.score.toFixed(0)})`}
               >
-                <span>{p.name}</span>
+                <span className="truncate max-w-[110px] sm:max-w-[130px]">{p.name}</span>
                 <span className="px-1.5 py-0.2 rounded-md font-mono text-[10px] font-bold bg-amber-100 text-amber-800">
                   {p.score.toFixed(0)} score
                 </span>
@@ -529,7 +678,7 @@ export function CampaignPoliciesTab() {
         </div>
 
         {/* Card 3: Tier Distribution & Multipliers (Visual Stack Bar) */}
-        <div className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-xs flex flex-col justify-between space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 bg-white shadow-xs flex flex-col justify-between space-y-3 min-w-0 md:col-span-2 xl:col-span-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0364FF] shrink-0">
@@ -651,39 +800,56 @@ export function CampaignPoliciesTab() {
       </div>
 
       {/* ─── Main Partner Performance Leaderboard ─── */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">
-              Partner Performance Leaderboard ({partners.length} Partners)
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Ranked 0–100 scores, tier classifications, KPI attainment benchmarks, and 7-day performance trajectories
-            </p>
-          </div>
-        </div>
-
-        <PartnerLeaderboardTable
-          partners={partners}
-          isLoading={leaderboardLoading}
-          onDispatchPip={(partner) => setPipPartner(partner)}
-          selectedTierFilter={activeLeaderboardFilter}
-          onTierFilterChange={setActiveLeaderboardFilter}
-        />
-      </div>
+      <PartnerLeaderboardTable
+        partners={partners}
+        isLoading={leaderboardLoading}
+        onDispatchPip={(partner) => setPipPartner(partner)}
+        selectedTierFilter={activeLeaderboardFilter}
+        onTierFilterChange={setActiveLeaderboardFilter}
+      />
 
       {/* ─── Automated SLA Breach Policies ─── */}
-      <SectionCard
-        title="Automated SLA Breach Policies"
-        subtitle="Configure campaign-level performance monitoring thresholds and automatic pause triggers"
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-          {/* Left Column: Campaign Selection with Search */}
-          <div className="space-y-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-              Select Campaign
-            </span>
+      <div className="border border-slate-200/80 rounded-2xl bg-white shadow-xs overflow-hidden">
+        {/* Section Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200/70 bg-[#F9FAFB]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0364FF] shrink-0">
+              <Sliders className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Automated SLA Breach Policies
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Circuit Breakers Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Configure campaign-level performance monitoring thresholds, evaluation cycles, and automatic traffic pause triggers
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-slate-400 font-mono shrink-0">
+            {campaigns.length} Monitored Campaigns
+          </span>
+        </div>
 
+        {/* 2-Column Split Studio */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/70">
+          {/* Left Column: Campaign Selection (4 cols) */}
+          <div className="lg:col-span-4 p-4 sm:p-5 space-y-3.5 bg-slate-50/40">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                Select Campaign
+              </span>
+              <span className="text-[10px] font-bold font-mono text-slate-400">
+                {filteredCampaigns.length} available
+              </span>
+            </div>
+
+            {/* Campaign Filter Search Input */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -691,14 +857,31 @@ export function CampaignPoliciesTab() {
                 value={campaignSearch}
                 onChange={(e) => setCampaignSearch(e.target.value)}
                 placeholder="Filter campaigns..."
-                className="w-full text-xs pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0364FF]"
+                className="w-full text-xs pl-8.5 pr-7 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0364FF]/20 focus:border-[#0364FF] transition-all"
               />
+              {campaignSearch && (
+                <button
+                  type="button"
+                  onClick={() => setCampaignSearch("")}
+                  className="text-xs text-slate-400 hover:text-slate-700 absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer font-bold"
+                >
+                  ×
+                </button>
+              )}
             </div>
 
-            <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white max-h-[360px] overflow-y-auto">
+            {/* Campaign Selection List */}
+            <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-0.5">
               {filteredCampaigns.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400">
-                  No matching campaigns found.
+                <div className="p-8 text-center bg-white rounded-xl border border-slate-200/80 space-y-2">
+                  <p className="text-xs font-medium text-slate-500">No matching campaigns found</p>
+                  <button
+                    type="button"
+                    onClick={() => setCampaignSearch("")}
+                    className="text-[11px] text-[#0364FF] font-semibold hover:underline cursor-pointer"
+                  >
+                    Clear search filter
+                  </button>
                 </div>
               ) : (
                 filteredCampaigns.map((c) => {
@@ -709,21 +892,39 @@ export function CampaignPoliciesTab() {
                       type="button"
                       onClick={() => setSelectedCampaignId(c.id)}
                       className={cn(
-                        "w-full flex items-center justify-between p-3.5 text-left transition-all cursor-pointer",
+                        "w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5",
                         isSelected
-                          ? "bg-blue-50/80 border-l-4 border-l-[#0364FF]"
-                          : "hover:bg-slate-50"
+                          ? "bg-white border-[#0364FF] shadow-xs ring-1 ring-[#0364FF]/20"
+                          : "bg-white hover:bg-slate-50 border-slate-200/80 hover:border-slate-300"
                       )}
                     >
-                      <div className="min-w-0 pr-2">
-                        <p className="text-xs font-bold text-slate-900 truncate">{c.name}</p>
-                        <p className="text-[10px] text-slate-400 capitalize mt-0.5">
-                          Status: {c.status}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate max-w-[150px]">
+                            {c.organizationName || "Client"}
+                          </span>
+                          {c.category && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600 shrink-0">
+                              {c.category}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-slate-900 truncate" title={c.name}>
+                          {c.name}
                         </p>
                       </div>
-                      {isSelected && (
-                        <span className="w-2 h-2 rounded-full bg-[#0364FF] shrink-0" />
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isSelected ? (
+                          <div className="w-5 h-5 rounded-full bg-[#0364FF] flex items-center justify-center text-white">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                        ) : (
+                          <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            c.status === "active" ? "bg-emerald-500" : "bg-blue-400"
+                          )} />
+                        )}
+                      </div>
                     </button>
                   );
                 })
@@ -731,23 +932,23 @@ export function CampaignPoliciesTab() {
             </div>
           </div>
 
-          {/* Right Column: Policy Configuration Workspace */}
-          <div className="lg:col-span-2">
+          {/* Right Column: Policy Configuration Workspace (8 cols) */}
+          <div className="lg:col-span-8 bg-white">
             {selectedCampaign ? (
-              <div className="border border-slate-200/80 rounded-2xl bg-white shadow-xs overflow-hidden">
-                <PolicyEditor
-                  campaignId={selectedCampaign.id}
-                  campaignName={selectedCampaign.name}
-                />
-              </div>
+              <PolicyEditor
+                campaignId={selectedCampaign.id}
+                campaignName={selectedCampaign.name}
+                organizationName={selectedCampaign.organizationName}
+                category={selectedCampaign.category}
+              />
             ) : (
-              <div className="p-12 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+              <div className="p-12 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 m-6">
                 Select a campaign from the left column to configure its SLA thresholds.
               </div>
             )}
           </div>
         </div>
-      </SectionCard>
+      </div>
 
       {/* ─── PIP Dispatch Modal ─── */}
       {pipPartner && (

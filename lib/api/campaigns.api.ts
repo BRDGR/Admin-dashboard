@@ -26,6 +26,7 @@ import {
   MOCK_SCORING_CONFIG_VERSIONS,
   MOCK_COMMERCIAL_VALIDATION_EVENTS,
   MOCK_FRAUD_ANOMALY_FLAGS,
+  MOCK_CAMPAIGN_QUEUE,
 } from "@/lib/mock/admin-campaigns.mock";
 import { MOCK_FALLBACKS_ENABLED } from "@/lib/mock/config";
 import { logger } from "@/lib/logger";
@@ -43,17 +44,37 @@ export async function getCampaignQueue(params?: {
   // NOTE: backend does not accept status filter — filtering is done client-side
 
   const res = await apiRequest<ApiEnvelope<AdminCampaignQueueResponse>>(
-    `/admin/campaigns/queue?${query.toString()}`
+    `/admin/campaigns/queue?${query.toString()}`,
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
+  );
+
+  const fallback = withDevMockFallback(
+    res,
+    Boolean(res.ok && res.data?.data && (res.data.data.queue?.length || res.data.data.campaigns?.length)),
+    "Campaign queue",
+    () => ({
+      queue: MOCK_CAMPAIGN_QUEUE,
+      campaigns: MOCK_CAMPAIGN_QUEUE,
+      pagination: {
+        currentPage: params?.page ?? 1,
+        nextPage: null,
+        prevPage: null,
+        hasNext: false,
+        hasPrev: false,
+        totalPages: 1,
+        totalRecords: MOCK_CAMPAIGN_QUEUE.length,
+      },
+    })
   );
 
   // Normalise: always expose campaigns array regardless of which key the API used
-  if (res.data?.data) {
-    const list = res.data.data.queue ?? res.data.data.campaigns ?? [];
-    res.data.data.campaigns = list;
-    res.data.data.queue = list;
+  if (fallback.data?.data) {
+    const list = fallback.data.data.queue ?? fallback.data.data.campaigns ?? [];
+    fallback.data.data.campaigns = list;
+    fallback.data.data.queue = list;
   }
 
-  return res;
+  return fallback;
 }
 
 export async function reviewCampaign(
@@ -63,6 +84,15 @@ export async function reviewCampaign(
   return apiRequest<ApiEnvelope<AdminCampaignQueueItem>>(
     `/admin/campaigns/${campaignId}/review`,
     { method: "PATCH", body: payload }
+  );
+}
+
+export async function getCampaignMaterials(
+  campaignId: string
+): Promise<ApiResponse<ApiEnvelope<{ materials?: unknown[]; shares?: unknown[] }>>> {
+  return apiRequest<ApiEnvelope<{ materials?: unknown[]; shares?: unknown[] }>>(
+    `/admin/campaigns/${encodeURIComponent(campaignId)}/materials`,
+    { silent404: true }
   );
 }
 
@@ -149,27 +179,96 @@ export async function getCampaignPerformance(
 export async function evaluateCampaignPerformance(
   campaignId: string
 ): Promise<ApiResponse<ApiEnvelope<CampaignEvaluationResponse>>> {
+  if (MOCK_FALLBACKS_ENABLED && campaignId.startsWith("cmp_")) {
+    return {
+      ok: true,
+      status: 200,
+      error: null,
+      data: {
+        error: false,
+        message: "[MOCK] Live SLA evaluation completed",
+        data: {
+          evaluation: {
+            passed: true,
+            currentMetrics: { avgCr: 2.8, avgCpa: 58 },
+            thresholds: { minCr: 2.0, maxCpa: 70 },
+            flags: [],
+            recommendedAction: "continue_monitoring",
+          },
+        },
+      },
+    };
+  }
+
   return apiRequest<ApiEnvelope<CampaignEvaluationResponse>>(
     `/admin/campaigns/${campaignId}/performance/evaluate`,
-    { method: "POST" }
+    { method: "POST", silent: MOCK_FALLBACKS_ENABLED }
   );
 }
 
 export async function getCampaignPerformancePolicy(
   campaignId: string
 ): Promise<ApiResponse<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>> {
-  return apiRequest<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>(
-    `/admin/campaigns/${campaignId}/performance/policy`
+  if (MOCK_FALLBACKS_ENABLED && campaignId.startsWith("cmp_")) {
+    return {
+      ok: true,
+      status: 200,
+      error: null,
+      data: {
+        error: false,
+        message: "[MOCK] Campaign policy",
+        data: {
+          policy: {
+            campaignId,
+            minConversionRate: 2.0,
+            maxCpa: 70,
+            minWeeklyConversions: 15,
+            evaluationFrequencyDays: 7,
+            autoPauseOnBreach: true,
+            lastEvaluatedAt: new Date().toISOString(),
+          },
+        },
+      },
+    };
+  }
+
+  const res = await apiRequest<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>(
+    `/admin/campaigns/${campaignId}/performance/policy`,
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
+  return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.policy), "Campaign policy", () => ({
+    policy: {
+      campaignId,
+      minConversionRate: 2.0,
+      maxCpa: 70,
+      minWeeklyConversions: 15,
+      evaluationFrequencyDays: 7,
+      autoPauseOnBreach: true,
+      lastEvaluatedAt: new Date().toISOString(),
+    },
+  }));
 }
 
 export async function updateCampaignPerformancePolicy(
   campaignId: string,
   policy: CampaignPerformancePolicy
 ): Promise<ApiResponse<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>> {
+  if (MOCK_FALLBACKS_ENABLED && campaignId.startsWith("cmp_")) {
+    return {
+      ok: true,
+      status: 200,
+      error: null,
+      data: {
+        error: false,
+        message: "[MOCK] Updated campaign performance policy",
+        data: { policy },
+      },
+    };
+  }
+
   return apiRequest<ApiEnvelope<{ policy: CampaignPerformancePolicy }>>(
     `/admin/campaigns/${campaignId}/performance/policy`,
-    { method: "PUT", body: policy }
+    { method: "PUT", body: policy, silent: MOCK_FALLBACKS_ENABLED }
   );
 }
 
@@ -223,7 +322,7 @@ export async function getPartnerLeaderboard(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ partners: AdminPartnerLeaderboardItem[]; total: number }>>(
     `/admin/campaigns/leaderboard${query}`,
-    { silent404: MOCK_FALLBACKS_ENABLED }
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
   return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.partners), "Partner leaderboard", () => ({
     partners: MOCK_300_PARTNERS,
@@ -243,7 +342,7 @@ export async function getValidationWorkQueue(params?: {
 
   const res = await apiRequest<ApiEnvelope<{ events: CommercialValidationEvent[]; total: number }>>(
     withQuery("/admin/campaigns/validation-queue", query),
-    { silent404: MOCK_FALLBACKS_ENABLED }
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
   return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.events), "Validation work queue", () => ({
     events: MOCK_COMMERCIAL_VALIDATION_EVENTS,
@@ -291,7 +390,7 @@ export async function getPayoutApprovalSummary(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ payoutSummary: AdminPayoutApprovalPayload }>>(
     `/admin/campaigns/payout-approval${query}`,
-    { silent404: MOCK_FALLBACKS_ENABLED }
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
   return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.payoutSummary), "Payout approval summary", () => ({
     payoutSummary: MOCK_PAYOUT_APPROVAL_PAYLOAD,
@@ -315,7 +414,7 @@ export async function getCampaignScoringConfig(
   const query = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : "";
   const res = await apiRequest<ApiEnvelope<{ activeConfig: CampaignConfigVersionDTO; history: CampaignConfigVersionDTO[] }>>(
     `/admin/campaigns/scoring-config${query}`,
-    { silent404: MOCK_FALLBACKS_ENABLED }
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
   return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.activeConfig), "Scoring config", () => ({
     activeConfig: MOCK_SCORING_CONFIG_VERSIONS[0],
@@ -339,7 +438,7 @@ export async function getFraudAnomalyFlags(): Promise<
 > {
   const res = await apiRequest<ApiEnvelope<{ flags: FraudAnomalyFlag[]; total: number }>>(
     `/admin/campaigns/fraud-anomalies`,
-    { silent404: MOCK_FALLBACKS_ENABLED }
+    { silent404: true, silent: MOCK_FALLBACKS_ENABLED }
   );
   return withDevMockFallback(res, Boolean(res.ok && res.data?.data?.flags), "Fraud anomaly flags", () => ({
     flags: MOCK_FRAUD_ANOMALY_FLAGS,

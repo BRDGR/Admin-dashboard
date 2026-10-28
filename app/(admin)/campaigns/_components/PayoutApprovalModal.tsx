@@ -116,7 +116,9 @@ export function PayoutApprovalModal({
                 Hamilton Largest-Remainder
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">{payload.campaignName}</p>
+            <p className="text-xs text-slate-500 mt-1 truncate max-w-md" title={payload.campaignName}>
+              {payload.campaignName}
+            </p>
           </div>
           <button
             onClick={onClose}

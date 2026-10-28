@@ -39,7 +39,7 @@ export function KycDecisionModal({
 
   async function handleConfirm() {
     if (decisionType === "approve") {
-      await onSubmit("verified", customNotes || undefined);
+      await onSubmit("verified", customNotes.trim() || "Verified and approved under standard compliance criteria.");
     } else if (decisionType === "action_required") {
       const noteSuffix = customNotes ? ` — ${customNotes}` : "";
       const fullNote = `Action Required: ${selectedReason}${noteSuffix}`;
@@ -149,7 +149,7 @@ export function KycDecisionModal({
               Cancel
             </Button>
             <Button
-              variant={decisionType === "approve" ? "primary" : decisionType === "action_required" ? "secondary" : "danger"}
+              variant={decisionType === "approve" ? "success" : decisionType === "action_required" ? "secondary" : "danger"}
               className="flex-1"
               isLoading={isLoading}
               onClick={handleConfirm}
