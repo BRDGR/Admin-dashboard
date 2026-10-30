@@ -20,6 +20,7 @@ import {
   CalendarCheck,
   ClipboardList,
   ChevronDown,
+  ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -49,6 +50,17 @@ const MAIN_NAV: NavItemDef[] = [
       { label: "360 Telemetry", href: "/campaigns/overview" },
       { label: "Performance & PIP", href: "/campaigns/performance" },
       { label: "Payouts & Audit", href: "/campaigns/payouts" },
+    ],
+  },
+  {
+    label: "Daily Tasks",
+    href: "/daily-tasks",
+    icon: ListTodo,
+    children: [
+      { label: "Approval Queue", href: "/daily-tasks/queue" },
+      { label: "Verification Queue", href: "/daily-tasks/verification" },
+      { label: "Notifications", href: "/daily-tasks/notifications" },
+      { label: "Audit Log", href: "/daily-tasks/audit" },
     ],
   },
   { label: "Directory", href: "/directory", icon: Contact },
