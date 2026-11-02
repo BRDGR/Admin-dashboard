@@ -291,6 +291,39 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
     }
   }
 
+  const handleApproveClick = () => {
+    handleSelectAction("approve");
+    reviewMutation.mutate();
+  };
+
+  const handleRequestAmendmentClick = () => {
+    if (activeTab !== "decision") {
+      handleSelectAction("request_changes");
+      setActiveTab("decision");
+      toast.info("Please review or enter the required amendment items for the client.");
+      return;
+    }
+    if (reviewAction !== "request_changes") {
+      handleSelectAction("request_changes");
+      return;
+    }
+    reviewMutation.mutate();
+  };
+
+  const handleDeclineClick = () => {
+    if (activeTab !== "decision") {
+      handleSelectAction("reject");
+      setActiveTab("decision");
+      toast.info("Please review or enter the decline reason.");
+      return;
+    }
+    if (reviewAction !== "reject") {
+      handleSelectAction("reject");
+      return;
+    }
+    reviewMutation.mutate();
+  };
+
   const reviewMutation = useMutation({
     mutationFn: async () => {
       if (reviewAction === "request_changes" && !reviewReason.trim() && !reviewChanges.trim()) {
@@ -495,48 +528,63 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
             <span>{allMaterials.length} client creative assets loaded for verification</span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
             <Button size="md" variant="ghost" onClick={onClose} disabled={reviewMutation.isPending}>
               Cancel
             </Button>
 
-            {reviewAction === "approve" && (
-              <Button
-                size="md"
-                variant="success"
-                isLoading={reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate()}
-                className="font-bold shadow-md shadow-emerald-600/20"
-              >
-                <CheckCircle className="w-4 h-4 mr-1.5" />
-                Approve Campaign
-              </Button>
-            )}
+            {/* Decline Button */}
+            <Button
+              size="md"
+              variant={reviewAction === "reject" && activeTab === "decision" ? "danger" : "outline"}
+              isLoading={reviewMutation.isPending && reviewAction === "reject"}
+              disabled={reviewMutation.isPending}
+              onClick={handleDeclineClick}
+              className={cn(
+                "font-bold transition-all",
+                reviewAction === "reject" && activeTab === "decision"
+                  ? "shadow-md shadow-rose-600/20"
+                  : "text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300"
+              )}
+            >
+              <XCircle className="w-4 h-4 mr-1.5" />
+              {activeTab === "decision" && reviewAction === "reject" ? "Confirm Decline" : "Decline"}
+            </Button>
 
-            {reviewAction === "request_changes" && (
-              <Button
-                size="md"
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md shadow-amber-600/20"
-                isLoading={reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate()}
-              >
-                <AlertTriangle className="w-4 h-4 mr-1.5" />
-                Request Changes
-              </Button>
-            )}
+            {/* Request Amendment Button */}
+            <Button
+              size="md"
+              isLoading={reviewMutation.isPending && reviewAction === "request_changes"}
+              disabled={reviewMutation.isPending}
+              onClick={handleRequestAmendmentClick}
+              className={cn(
+                "font-bold transition-all",
+                reviewAction === "request_changes" && activeTab === "decision"
+                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20"
+                  : "bg-white text-amber-700 border border-amber-300 hover:bg-amber-50"
+              )}
+            >
+              <AlertTriangle className="w-4 h-4 mr-1.5" />
+              {activeTab === "decision" && reviewAction === "request_changes" ? "Submit Amendment" : "Request Amendment"}
+            </Button>
 
-            {reviewAction === "reject" && (
-              <Button
-                size="md"
-                variant="danger"
-                isLoading={reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate()}
-                className="font-bold shadow-md shadow-rose-600/20"
-              >
-                <XCircle className="w-4 h-4 mr-1.5" />
-                Reject Campaign
-              </Button>
-            )}
+            {/* Approve Button */}
+            <Button
+              size="md"
+              variant={reviewAction === "approve" ? "success" : "outline"}
+              isLoading={reviewMutation.isPending && reviewAction === "approve"}
+              disabled={reviewMutation.isPending}
+              onClick={handleApproveClick}
+              className={cn(
+                "font-bold transition-all",
+                reviewAction === "approve"
+                  ? "shadow-md shadow-emerald-600/20"
+                  : "text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+              )}
+            >
+              <CheckCircle className="w-4 h-4 mr-1.5" />
+              Approve Campaign
+            </Button>
           </div>
         </div>
       </div>

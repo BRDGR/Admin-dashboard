@@ -116,7 +116,7 @@ export function CampaignDecisionTab({
             </div>
             <div>
               <span className="text-xs font-bold text-slate-900 block">
-                Request Changes
+                Request Amendment
               </span>
               <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                 Returns draft to client with specific revision items.
@@ -154,7 +154,7 @@ export function CampaignDecisionTab({
             </div>
             <div>
               <span className="text-xs font-bold text-slate-900 block">
-                Reject Campaign
+                Decline Campaign
               </span>
               <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
                 Declines submission on compliance or policy grounds.
@@ -169,7 +169,7 @@ export function CampaignDecisionTab({
         <div className="p-4 rounded-2xl border border-amber-200/90 bg-amber-50/40 space-y-3 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-amber-900 block">
-              Specific Requested Changes (one revision item per line)
+              Specific Requested Amendments (one revision item per line)
             </label>
             <span className="text-[10px] text-amber-700 font-semibold">
               Client will see this list in Action Required portal
@@ -187,7 +187,7 @@ export function CampaignDecisionTab({
           {/* Quick-add chips */}
           <div className="space-y-1.5 pt-1">
             <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">
-              Common Feedback Quick-Insert:
+              Common Amendment Quick-Insert:
             </span>
             <div className="flex flex-wrap gap-1.5">
               {quickChangeSnippets.map((snippet, idx) => (
