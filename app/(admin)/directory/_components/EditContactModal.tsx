@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X, Edit3, Loader2 } from "lucide-react";
-import { updateDirectoryContact } from "@/lib/api/admin.api";
+import { updateDirectoryContact, getDirectoryContact } from "@/lib/api/admin.api";
 import type { DirectoryContact, ContactStatus } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -20,16 +21,28 @@ export function EditContactModal({ contact, onClose, onSuccess }: EditContactMod
   const [status, setStatus] = useState<ContactStatus>("new");
   const [notes, setNotes] = useState("");
 
+  const { data: fetchedContact } = useQuery({
+    queryKey: ["admin", "directory-contact", contact?.id],
+    queryFn: async () => {
+      if (!contact?.id) return null;
+      const res = await getDirectoryContact(contact.id);
+      return res.data?.data?.contact ?? null;
+    },
+    enabled: Boolean(contact?.id),
+  });
+
+  const resolvedContact = fetchedContact ?? contact;
+
   useEffect(() => {
-    if (contact) {
-      setName(contact.name || "");
-      setEmail(contact.email || "");
-      setSource(contact.source || "Inbound Webform");
-      setStatus(contact.status || "new");
-      const memo = (contact.notes as Record<string, unknown>)?.memo;
+    if (resolvedContact) {
+      setName(resolvedContact.name || "");
+      setEmail(resolvedContact.email || "");
+      setSource(resolvedContact.source || "Inbound Webform");
+      setStatus(resolvedContact.status || "new");
+      const memo = (resolvedContact.notes as Record<string, unknown>)?.memo;
       setNotes(typeof memo === "string" ? memo : "");
     }
-  }, [contact]);
+  }, [resolvedContact]);
 
   if (!contact) return null;
 

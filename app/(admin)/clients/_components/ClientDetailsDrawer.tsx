@@ -18,8 +18,8 @@ import {
 import { format } from "date-fns";
 import type { AdminClientRecord } from "@/lib/types";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteClient } from "@/lib/api/admin.api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { deleteClient, getClient } from "@/lib/api/admin.api";
 import { formatName } from "./client-columns";
 
 function getInitials(firstName?: string, lastName?: string, email?: string): string {
@@ -40,6 +40,16 @@ export function ClientDetailsDrawer({ client, onClose }: ClientDetailsDrawerProp
   const [confirmDelete, setConfirmDelete] = useState(false);
   const queryClient = useQueryClient();
 
+  const clientUserId = client?.user?.id || client?.id || "";
+  const { data: detailedClient } = useQuery({
+    queryKey: ["admin", "client-detail", clientUserId],
+    queryFn: async () => {
+      const res = await getClient(clientUserId);
+      return res.data?.data?.client ?? null;
+    },
+    enabled: Boolean(clientUserId),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
       const res = await deleteClient(userId);
@@ -58,7 +68,8 @@ export function ClientDetailsDrawer({ client, onClose }: ClientDetailsDrawerProp
 
   if (!client) return null;
 
-  const { user, organization: org, partnerProfile: profile } = client;
+  const resolvedClient = detailedClient ?? client;
+  const { user, organization: org, partnerProfile: profile } = resolvedClient;
   const initials = getInitials(user.firstName, user.lastName, user.email);
   const fullName = formatName(user.firstName, user.lastName);
 

@@ -96,6 +96,16 @@ export async function getCampaignMaterials(
   );
 }
 
+export async function getCampaignSharedMaterialDetail(
+  campaignId: string,
+  shareId: string
+): Promise<ApiResponse<ApiEnvelope<Record<string, unknown>>>> {
+  return apiRequest<ApiEnvelope<Record<string, unknown>>>(
+    `/admin/campaigns/${encodeURIComponent(campaignId)}/materials/${encodeURIComponent(shareId)}`,
+    { silent404: true }
+  );
+}
+
 /** Appends `?query` to a path only when the query string is non-empty. */
 function withQuery(path: string, query: URLSearchParams): string {
   const qs = query.toString();

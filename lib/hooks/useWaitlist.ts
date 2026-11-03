@@ -1,9 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getToken } from "@/lib/auth/storage";
 import type { WaitlistEntry } from "@/lib/types";
 
 async function fetchWaitlist(): Promise<WaitlistEntry[]> {
-  const res = await fetch("/api/waitlist");
+  const token = getToken();
+  const res = await fetch("/api/waitlist", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) throw new Error("Failed to load waitlist");
   const json = await res.json();
   return json.data || [];

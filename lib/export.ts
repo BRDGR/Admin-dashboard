@@ -1,15 +1,28 @@
 import { format } from "date-fns";
 import type { WaitlistEntry } from "./types";
 
+const FORMULA_PREFIX_RE = /^[=+\-@\t\r]/;
+
+export function sanitizeCsvCell(val: unknown): string {
+  const raw = val == null ? "" : String(val);
+  const safe = FORMULA_PREFIX_RE.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
 export function exportWaitlistCSV(entries: WaitlistEntry[]) {
   const headers = ["Name", "Email", "Role", "Company", "Looking For", "Status", "Joined"];
   const rows = entries.map((e) => [
-    e.fullName, e.email, e.role, e.company, e.lookingFor, e.status,
+    e.fullName,
+    e.email,
+    e.role,
+    e.company,
+    e.lookingFor,
+    e.status,
     format(new Date(e.createdAt), "yyyy-MM-dd"),
   ]);
 
   const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .map((row) => row.map((cell) => sanitizeCsvCell(cell)).join(","))
     .join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -64,7 +77,7 @@ export function exportPayoutBatchCSV(
   ]);
 
   const csv = [headers, ...dataRows]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .map((row) => row.map((cell) => sanitizeCsvCell(cell)).join(","))
     .join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -78,4 +91,3 @@ export function exportPayoutBatchCSV(
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-

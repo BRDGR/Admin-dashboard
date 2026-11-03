@@ -1,4 +1,4 @@
-import { getToken, clearToken } from "@/lib/auth/storage";
+import { getToken, setToken, getRefreshToken, setRefreshToken, clearToken } from "@/lib/auth/storage";
 import { logger } from "@/lib/logger";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://brdgr-api.onrender.com/api/v1";
@@ -33,6 +33,66 @@ export interface ApiRequestOptions<B = unknown> {
   silent404?: boolean;
   silent?: boolean;
   timeoutMs?: number;
+}
+
+// ─── Token Refresh ────────────────────────────────────────────────────────────
+
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function attemptTokenRefresh(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+      let res = await fetch(`${API_BASE}/auth/refresh-token`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${refreshToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        res = await fetch(`${API_BASE}/auth/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+
+      if (!res.ok) return null;
+
+      const json = (await res.json()) as {
+        data?: {
+          tokens?: { accessToken?: string; refreshToken?: string };
+          accessToken?: string;
+          refreshToken?: string;
+        };
+      };
+
+      const rawData = json?.data;
+      const accessToken = rawData?.tokens?.accessToken ?? rawData?.accessToken;
+      if (!accessToken) return null;
+
+      const newRefreshToken = rawData?.tokens?.refreshToken ?? rawData?.refreshToken;
+
+      setToken(accessToken);
+      if (newRefreshToken) {
+        setRefreshToken(newRefreshToken);
+      }
+
+      return accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 // ─── Request building ─────────────────────────────────────────────────────────
@@ -154,16 +214,45 @@ export async function apiRequest<T, B = unknown>(
   const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
   try {
-    const res = await fetch(ctx.url, {
+    const activeToken = token ?? getToken();
+    let res = await fetch(ctx.url, {
       method,
-      headers: buildHeaders(isFormData, token ?? getToken()),
+      headers: buildHeaders(isFormData, activeToken),
       body: serializeBody(body, isFormData),
       signal: controller?.signal,
     });
 
-    const json = parseJson<T>(await res.text());
+    let json = parseJson<T>(await res.text());
+    const initialMsg = getHttpErrorMessage(json, res.status);
+
+    // Attempt silent token refresh on 401 (or 400 JWT error) before falling back to redirectToLogin()
+    if (!res.ok && isAuthError(res.status, initialMsg) && !token && activeToken) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        res = await fetch(ctx.url, {
+          method,
+          headers: buildHeaders(isFormData, refreshedToken),
+          body: serializeBody(body, isFormData),
+          signal: controller?.signal,
+        });
+        json = parseJson<T>(await res.text());
+      }
+    }
 
     if (!res.ok) return handleHttpError(ctx, res.status, json);
+
+    // Check envelope error flag on 2xx responses
+    const hasAppError =
+      json !== null &&
+      typeof json === "object" &&
+      (json as { error?: boolean }).error === true;
+
+    if (hasAppError) {
+      const errorMessage =
+        (json as { message?: string }).message || "An error occurred";
+      logger.api(method, ctx.url, res.status, json);
+      return { data: json, error: errorMessage, status: res.status, ok: false };
+    }
 
     logger.api(method, ctx.url, res.status, json);
     return { data: json, error: null, status: res.status, ok: true };

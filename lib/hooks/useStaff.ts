@@ -1,5 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listStaff, getStaffMember, createStaff, getAdminProfile, getSeedHistory } from "@/lib/api";
+import {
+  listStaff,
+  getStaffMember,
+  createStaff,
+  getAdminProfile,
+  getSeedHistory,
+  uploadAdminImage,
+  removeAdminImage,
+} from "@/lib/api";
 import type { StaffResponse, StaffMember, CreateStaffPayload, SeedHistoryResponse } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -54,8 +62,45 @@ export function useAdminProfile() {
     queryFn: async () => {
       const res = await getAdminProfile();
       if (!res.ok) throw new Error(res.error ?? "Failed to load profile");
-      return res.data?.data?.user as StaffMember;
+      const raw = res.data?.data as unknown as { user?: StaffMember } & StaffMember;
+      return (raw?.user ?? raw) as StaffMember;
     },
+  });
+}
+
+export function useUploadAdminImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const res = await uploadAdminImage(file);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to upload profile image");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Admin profile image updated");
+      qc.invalidateQueries({ queryKey: ["admin", "profile"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRemoveAdminImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await removeAdminImage();
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to remove profile image");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Admin profile image removed");
+      qc.invalidateQueries({ queryKey: ["admin", "profile"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }
 

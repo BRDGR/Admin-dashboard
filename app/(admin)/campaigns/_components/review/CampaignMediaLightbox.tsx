@@ -1,6 +1,7 @@
 "use client";
 
 import { X, FileText, Download } from "lucide-react";
+import { safeExternalUrl } from "@/lib/utils";
 import type { MediaPreviewItem } from "./types";
 
 interface CampaignMediaLightboxProps {
@@ -52,14 +53,16 @@ export function CampaignMediaLightbox({ media, onClose }: CampaignMediaLightboxP
             <div className="p-8 text-center text-slate-400">
               <FileText className="w-16 h-16 mx-auto mb-2 text-slate-500" />
               <p className="text-sm font-semibold text-white mb-2">{media.name}</p>
-              <a
-                href={media.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0364FF] text-white rounded-xl text-xs font-bold"
-              >
-                <Download className="w-3.5 h-3.5" /> Download Document
-              </a>
+              {safeExternalUrl(media.url) && (
+                <a
+                  href={safeExternalUrl(media.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0364FF] text-white rounded-xl text-xs font-bold"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download Document
+                </a>
+              )}
             </div>
           )}
         </div>

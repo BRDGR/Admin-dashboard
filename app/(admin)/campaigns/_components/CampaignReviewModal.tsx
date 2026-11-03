@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layers, DollarSign, Target, ShieldCheck, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui";
-import { reviewCampaign, getCampaignMaterials } from "@/lib/api/campaigns.api";
+import { reviewCampaign, getCampaignMaterials, getCampaignSharedMaterialDetail } from "@/lib/api/campaigns.api";
 import type { AdminCampaignQueueItem, CampaignReviewPayload } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -88,7 +88,9 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
       const res = await getCampaignMaterials(campaign.id);
       if (!res.ok) return [];
       const data = res.data?.data;
-      return (data?.materials || data?.shares || []) as Array<{
+      const shares = (data?.materials || data?.shares || []) as Array<{
+        id?: string;
+        shareId?: string;
         files?: Array<{
           url: string;
           publicId?: string;
@@ -108,6 +110,19 @@ export function CampaignReviewModal({ campaign, onClose, onApproved }: CampaignR
           thumbnailUrl?: string;
         }>;
       }>;
+      const enriched = await Promise.all(
+        shares.map(async (s) => {
+          const sId = s.id || s.shareId;
+          if (sId && (!s.files || s.files.length === 0) && (!s.assets || s.assets.length === 0)) {
+            const detailRes = await getCampaignSharedMaterialDetail(campaign.id, sId);
+            const detailData = detailRes.data?.data as Record<string, unknown> | undefined;
+            const resolved = (detailData?.share ?? detailData?.material ?? detailData) as typeof s | undefined;
+            if (resolved) return { ...s, ...resolved };
+          }
+          return s;
+        })
+      );
+      return enriched;
     },
     enabled: Boolean(campaign.id),
   });

@@ -15,6 +15,7 @@ import {
   Info,
 } from "lucide-react";
 import { useAdminSubmissionDetail, useAdminVerificationQueue } from "@/lib/hooks/useAdminDailyTasks";
+import { safeExternalUrl } from "@/lib/utils";
 import { AdminSubmissionStatusBadge, AdminPlatformBadge } from "../../_components/AdminDailyTaskBadges";
 
 const VERIFICATION_CHECKLIST = [
@@ -175,9 +176,9 @@ export default function AdminSubmissionReviewPage() {
               <span className="font-mono text-xs text-slate-800 truncate">
                 {submission.postUrl || "No URL submitted"}
               </span>
-              {submission.postUrl && (
+              {safeExternalUrl(submission.postUrl) && (
                 <a
-                  href={submission.postUrl}
+                  href={safeExternalUrl(submission.postUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 hover:bg-slate-200 rounded text-[#0364FF] shrink-0"

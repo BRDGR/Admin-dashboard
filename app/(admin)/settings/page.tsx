@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Shield, Settings2, User, ChevronRight, Save, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Bell, Shield, Settings2, User, ChevronRight, Save, Loader2, Upload, Trash2 } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import { Button } from "@/components/ui";
-import { useAdminProfile } from "@/lib/hooks/useStaff";
-import { cn } from "@/lib/utils";
+import { useAdminProfile, useUploadAdminImage, useRemoveAdminImage } from "@/lib/hooks/useStaff";
+import { cn, safeExternalUrl } from "@/lib/utils";
 
 type Section = "profile" | "notifications" | "platform" | "security";
 
@@ -41,9 +41,13 @@ const labelCls = "text-xs font-semibold text-slate-500 block mb-1.5";
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>("profile");
   const { data: adminProfile, isLoading } = useAdminProfile();
+  const uploadAvatarMutation = useUploadAdminImage();
+  const removeAvatarMutation = useRemoveAdminImage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
 
-  const admin = (adminProfile as unknown as Record<string, Record<string, string>> | undefined)?.user;
+  const admin = ((adminProfile as unknown as Record<string, unknown>)?.user ?? adminProfile) as Record<string, string> | undefined;
+  const avatarUrl = safeExternalUrl(admin?.imageUrl || admin?.avatarUrl || admin?.profileImageUrl);
 
   async function handleSave() {
     setSaving(true);
@@ -104,6 +108,56 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <>
+                  <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0364FF] border border-blue-100 flex items-center justify-center font-bold text-base overflow-hidden shrink-0">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarUrl} alt="Admin avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>
+                          {(admin?.firstName?.[0] ?? "A").toUpperCase()}
+                          {(admin?.lastName?.[0] ?? "").toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-slate-800">Profile Photo</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) uploadAvatarMutation.mutate(f);
+                            e.target.value = "";
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          isLoading={uploadAvatarMutation.isPending}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Photo
+                        </Button>
+                        {avatarUrl && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            isLoading={removeAvatarMutation.isPending}
+                            onClick={() => removeAvatarMutation.mutate()}
+                            className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>First Name</label>

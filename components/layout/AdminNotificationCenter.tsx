@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   fetchNotifications,
+  fetchUnreadCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
@@ -25,6 +26,7 @@ import { useAdminAuth } from "@/context/AdminAuthContext";
 import type { NotificationItem } from "@/lib/types";
 
 const ADMIN_NOTIFICATIONS_KEY = ["admin", "notifications"] as const;
+const ADMIN_UNREAD_COUNT_KEY = ["admin", "notifications", "unread-count"] as const;
 
 export function AdminNotificationCenter() {
   const { admin } = useAdminAuth();
@@ -56,8 +58,21 @@ export function AdminNotificationCenter() {
     retry: false,
   });
 
+  const unreadQuery = useQuery({
+    queryKey: ADMIN_UNREAD_COUNT_KEY,
+    queryFn: async () => {
+      const res = await fetchUnreadCount();
+      return res.data?.data?.unreadCount ?? null;
+    },
+    enabled: Boolean(admin),
+    refetchInterval: 30000,
+    staleTime: 15000,
+    retry: false,
+  });
+
   const notifications: NotificationItem[] = query.data?.notifications ?? [];
   const unreadCount =
+    unreadQuery.data ??
     query.data?.unreadCount ??
     notifications.filter((n) => !n.readAt).length;
 
@@ -69,6 +84,7 @@ export function AdminNotificationCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_NOTIFICATIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: ADMIN_UNREAD_COUNT_KEY });
     },
   });
 
@@ -80,6 +96,7 @@ export function AdminNotificationCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_NOTIFICATIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: ADMIN_UNREAD_COUNT_KEY });
     },
   });
 
@@ -91,6 +108,7 @@ export function AdminNotificationCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_NOTIFICATIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: ADMIN_UNREAD_COUNT_KEY });
     },
   });
 

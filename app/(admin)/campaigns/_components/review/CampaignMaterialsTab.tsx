@@ -11,7 +11,7 @@ import {
   Download,
   Sparkles,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeExternalUrl } from "@/lib/utils";
 import type { NormalizedMaterial, MediaPreviewItem } from "./types";
 
 interface CampaignMaterialsTabProps {
@@ -232,19 +232,19 @@ export function CampaignMaterialsTab({
                 </button>
 
                 <div className="flex items-center gap-1">
-                  {mat.url && mat.url !== "#" && (
+                  {safeExternalUrl(mat.url) && (
                     <>
                       <a
-                        href={mat.url}
+                        href={safeExternalUrl(mat.url)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                         title="Open external link"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                       <a
-                        href={mat.url}
+                        href={safeExternalUrl(mat.url)}
                         download={mat.name}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                         title="Download Asset"

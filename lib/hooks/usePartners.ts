@@ -7,10 +7,11 @@ import {
   listByopPartners,
   getPartner,
   deletePartner,
+  getPartnerCampaignPerformance,
 } from "@/lib/api";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
-import type { PartnersResponse } from "@/lib/types";
+import type { PartnersResponse, PartnerCampaignPerformanceResponse } from "@/lib/types";
 
 export function usePartners(page = 1, limit = 20, enabled = true) {
   return useQuery({
@@ -140,5 +141,19 @@ export function useDeletePartner() {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePartnerCampaignPerformance(partnerUserId: string) {
+  return useQuery({
+    queryKey: ["admin", "partner", partnerUserId, "campaign-performance"],
+    queryFn: async () => {
+      const res = await getPartnerCampaignPerformance(partnerUserId);
+      if (!res.ok || res.error) {
+        throw new Error(res.error ?? "Failed to load partner campaign performance");
+      }
+      return (res.data?.data ?? null) as PartnerCampaignPerformanceResponse | null;
+    },
+    enabled: Boolean(partnerUserId),
   });
 }

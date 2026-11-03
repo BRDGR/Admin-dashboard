@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, safeExternalUrl } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
@@ -157,9 +157,9 @@ export function OrgKycDetailDrawer({
                       </div>
                     </div>
 
-                    {doc.url ? (
+                    {safeExternalUrl(doc.url) ? (
                       <a
-                        href={doc.url}
+                        href={safeExternalUrl(doc.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-blue-50 text-[#0364FF] hover:bg-blue-100 font-semibold text-xs transition-colors cursor-pointer"
@@ -206,11 +206,11 @@ export function OrgKycDetailDrawer({
                       </span>
                     </div>
                   )}
-                  {org?.website && (
+                  {safeExternalUrl(org?.website) && (
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-slate-400">Website</span>
-                      <a href={org.website.startsWith("http") ? org.website : `https://${org.website}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0364FF] hover:underline flex items-center gap-1">
-                        <Globe className="w-3 h-3" /> {org.website.replace(/^https?:\/\//, "")}
+                      <a href={safeExternalUrl(org?.website)} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0364FF] hover:underline flex items-center gap-1">
+                        <Globe className="w-3 h-3" /> {org?.website?.replace(/^https?:\/\//, "")}
                       </a>
                     </div>
                   )}

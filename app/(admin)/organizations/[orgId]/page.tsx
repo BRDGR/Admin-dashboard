@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, safeExternalUrl } from "@/lib/utils";
 import {
   ArrowLeft, Building2, Mail, Globe, MapPin,
   ShieldCheck, Clock, Users, FileText, CheckCircle,
@@ -118,8 +118,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ o
                       <Mail className="w-3.5 h-3.5 text-slate-400" /> {org.email}
                     </span>
                   )}
-                  {org.website && (
-                    <a href={org.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-[#0364FF] hover:underline">
+                  {safeExternalUrl(org.website) && (
+                    <a href={safeExternalUrl(org.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-[#0364FF] hover:underline">
                       <Globe className="w-3.5 h-3.5" /> {org.website}
                     </a>
                   )}

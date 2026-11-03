@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
-import { getToken, setToken as saveToken, clearToken } from "@/lib/auth/storage";
+import { getToken, setToken as saveToken, setRefreshToken as saveRefreshToken, clearToken } from "@/lib/auth/storage";
 import type { StaffMember, ApiEnvelope } from "@/lib/types";
 
 interface LoginPayload { email: string; password: string; }
@@ -22,6 +22,15 @@ interface AdminAuthContextValue {
   logout: () => void;
   clearError: () => void;
 }
+
+const ALLOWED_ADMIN_ROLES = [
+  "admin",
+  "ops_admin",
+  "super_admin",
+  "staff",
+  "reviewer",
+  "support",
+];
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
@@ -48,17 +57,19 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
             rawEnvelope?.admin ??
             (rawData?.id ? rawData : null)) as StaffMember | null;
 
-          if (user) {
+          const role = user?.role?.toLowerCase();
+          if (res.ok && user && role && ALLOWED_ADMIN_ROLES.includes(role)) {
             setAdmin(user);
-          } else if (!res.ok) {
-            // Only clear token if server explicitly rejected or responded with an error
+          } else {
             clearToken();
             setToken(null);
+            setAdmin(null);
           }
         })
         .catch(() => {
           clearToken();
           setToken(null);
+          setAdmin(null);
         })
         .finally(() => setIsInitializing(false));
     } else {
@@ -89,18 +100,24 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           : (tokens as { accessToken?: string } | undefined)?.accessToken ??
             (rawTokensObj?.token as string | undefined) ??
             (rawTokensObj?.access_token as string | undefined);
+      const refreshToken =
+        (tokens as { refreshToken?: string } | undefined)?.refreshToken ??
+        (rawTokensObj?.refresh_token as string | undefined) ??
+        (rawData?.refreshToken as string | undefined);
 
       if (!accessToken || !user) {
         throw new Error("Invalid credentials or server response format.");
       }
 
       // Guard: allow all administrative/staff roles
-      const allowedRoles = ["admin", "ops_admin", "super_admin", "staff", "reviewer", "support"];
-      if (!allowedRoles.includes(user.role?.toLowerCase())) {
+      if (!ALLOWED_ADMIN_ROLES.includes(user.role?.toLowerCase())) {
         throw new Error("Access denied. Admin credentials required.");
       }
 
       saveToken(accessToken);
+      if (refreshToken) {
+        saveRefreshToken(refreshToken);
+      }
       setToken(accessToken);
       setAdmin(user);
     } catch (err) {

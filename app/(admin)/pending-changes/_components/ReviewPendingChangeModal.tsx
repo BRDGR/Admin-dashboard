@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X, CheckCircle, XCircle, ShieldAlert, Loader2, User, Clock, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
-import { reviewPendingChange } from "@/lib/api/admin.api";
+import { reviewPendingChange, getPendingChange } from "@/lib/api/admin.api";
 import { logger } from "@/lib/logger";
 import type { PendingChangeItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -16,13 +17,26 @@ interface ReviewPendingChangeModalProps {
 }
 
 export function ReviewPendingChangeModal({
-  change,
+  change: initialChange,
   onClose,
   onSuccess,
 }: ReviewPendingChangeModalProps) {
   const [decision, setDecision] = useState<"approved" | "rejected">("approved");
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: fetchedChange } = useQuery({
+    queryKey: ["admin", "pending-change", initialChange?.id],
+    queryFn: async () => {
+      if (!initialChange?.id) return null;
+      const res = await getPendingChange(initialChange.id);
+      const raw = res.data?.data as unknown as { pendingChange?: PendingChangeItem } & PendingChangeItem;
+      return (raw?.pendingChange ?? (raw?.id ? raw : null)) as PendingChangeItem | null;
+    },
+    enabled: Boolean(initialChange?.id),
+  });
+
+  const change = fetchedChange ?? initialChange;
 
   if (!change) return null;
 

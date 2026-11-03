@@ -7,14 +7,14 @@ import { AdminSidebar } from "@/components/layout";
 import { Loader2 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { token, isInitializing } = useAdminAuth();
+  const { token, admin, isInitializing } = useAdminAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isInitializing && !token) {
+    if (!isInitializing && (!token || !admin)) {
       router.replace("/login");
     }
-  }, [token, isInitializing, router]);
+  }, [token, admin, isInitializing, router]);
 
   if (isInitializing) {
     return (
@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!token) return null;
+  if (!token || !admin) return null;
 
   return (
     <div className="flex h-screen bg-[#F2F4F9]">

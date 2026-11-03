@@ -1,9 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getToken } from "@/lib/auth/storage";
 import type { DemoRequest } from "@/lib/types";
 
 async function fetchDemoRequests(): Promise<DemoRequest[]> {
-  const res = await fetch("/api/demo");
+  const token = getToken();
+  const res = await fetch("/api/demo", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) throw new Error("Failed to load demo requests");
   const json = await res.json();
   return json.data || [];

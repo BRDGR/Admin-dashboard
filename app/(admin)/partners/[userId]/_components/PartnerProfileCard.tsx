@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin, Mail, Phone, Globe, Award, ExternalLink } from "lucide-react";
+import { safeExternalUrl } from "@/lib/utils";
 import type { PartnerProfile, User } from "@/lib/types";
 
 function InfoRow({ label, value }: { label: string; value?: string | number | null }) {
@@ -119,9 +120,9 @@ export function PartnerProfileCard({ user, profile }: PartnerProfileCardProps) {
                     {item.description}
                   </p>
                 </div>
-                {item.url && (
+                {safeExternalUrl(item.url) && (
                   <a
-                    href={item.url}
+                    href={safeExternalUrl(item.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="shrink-0 text-[#0364FF] hover:text-[#0052D4]"

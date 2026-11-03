@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, safeExternalUrl } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   User,
@@ -140,9 +140,9 @@ export function PartnerKycDetailDrawer({
                   </div>
                 </div>
 
-                {doc.url ? (
+                {safeExternalUrl(doc.url) ? (
                   <a
-                    href={doc.url}
+                    href={safeExternalUrl(doc.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-blue-50 text-[#0364FF] hover:bg-blue-100 font-semibold text-xs transition-colors cursor-pointer"

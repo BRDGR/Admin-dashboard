@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { ArrowLeft, CheckCircle, XCircle, Trash2, AlertTriangle } from "lucide-react";
 import { AdminTopBar } from "@/components/layout";
 import { StatusBadge, Button } from "@/components/ui";
-import { usePartner } from "@/lib/hooks/usePartners";
+import { usePartner, usePartnerCampaignPerformance } from "@/lib/hooks/usePartners";
 import { usePartnerKycList } from "@/lib/hooks/useKyc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { vetPartner, deletePartner } from "@/lib/api/admin.api";
@@ -46,6 +46,7 @@ export default function PartnerDetailPage({
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isLoading } = usePartner(userId);
+  const { data: campaignPerf } = usePartnerCampaignPerformance(userId);
   const { data: kycData } = usePartnerKycList(1, 50);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -237,8 +238,38 @@ export default function PartnerDetailPage({
 
       {/* Main Grid: Details + Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-5">
           <PartnerProfileCard user={user} profile={profile} />
+          {campaignPerf?.performance && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">Campaign Performance Summary</h2>
+                {campaignPerf.performance.status && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-[#0364FF] capitalize">
+                    {campaignPerf.performance.status}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-slate-400">Clicks</p>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5">{campaignPerf.performance.clicks ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-slate-400">Conversions</p>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5">{campaignPerf.performance.conversions ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-slate-400">Conversion Rate</p>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5">{campaignPerf.performance.conversionRate ?? 0}%</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-slate-400">ROAS</p>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5">{campaignPerf.performance.roas ?? 0}x</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div className="lg:col-span-1">
           <PartnerStatusSidebar
